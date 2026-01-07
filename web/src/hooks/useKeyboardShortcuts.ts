@@ -7,6 +7,7 @@ interface ShortcutOptions {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onRefresh?: () => void;
+  onToggleBottomPanel?: () => void;
 }
 
 export function useKeyboardShortcuts(options: ShortcutOptions) {
@@ -53,6 +54,12 @@ export function useKeyboardShortcuts(options: ShortcutOptions) {
       if (isMod && e.key === 'r' && e.shiftKey) {
         e.preventDefault();
         options.onRefresh?.();
+      }
+
+      // Toggle bottom panel: Cmd/Ctrl+J
+      if (isMod && e.key === 'j') {
+        e.preventDefault();
+        options.onToggleBottomPanel?.();
       }
     };
 
