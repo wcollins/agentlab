@@ -1,0 +1,90 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"gopkg.in/yaml.v3"
+)
+
+// LoadTopology reads and parses a topology file.
+func LoadTopology(path string) (*Topology, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading topology file: %w", err)
+	}
+
+	var topology Topology
+	if err := yaml.Unmarshal(data, &topology); err != nil {
+		return nil, fmt.Errorf("parsing topology YAML: %w", err)
+	}
+
+	// Expand environment variables in string values
+	expandEnvVars(&topology)
+
+	// Apply defaults
+	topology.SetDefaults()
+
+	// Resolve relative paths based on topology file location
+	basePath := filepath.Dir(path)
+	resolveRelativePaths(&topology, basePath)
+
+	// Validate the topology
+	if err := Validate(&topology); err != nil {
+		return nil, err
+	}
+
+	return &topology, nil
+}
+
+// expandEnvVars expands environment variables in the topology.
+func expandEnvVars(t *Topology) {
+	t.Name = os.ExpandEnv(t.Name)
+	t.Network.Name = os.ExpandEnv(t.Network.Name)
+
+	// Expand networks (advanced mode)
+	for i := range t.Networks {
+		t.Networks[i].Name = os.ExpandEnv(t.Networks[i].Name)
+	}
+
+	for i := range t.MCPServers {
+		t.MCPServers[i].Name = os.ExpandEnv(t.MCPServers[i].Name)
+		t.MCPServers[i].Image = os.ExpandEnv(t.MCPServers[i].Image)
+		t.MCPServers[i].Network = os.ExpandEnv(t.MCPServers[i].Network)
+
+		if t.MCPServers[i].Source != nil {
+			t.MCPServers[i].Source.URL = os.ExpandEnv(t.MCPServers[i].Source.URL)
+			t.MCPServers[i].Source.Path = os.ExpandEnv(t.MCPServers[i].Source.Path)
+			t.MCPServers[i].Source.Ref = os.ExpandEnv(t.MCPServers[i].Source.Ref)
+		}
+
+		for k, v := range t.MCPServers[i].Env {
+			t.MCPServers[i].Env[k] = os.ExpandEnv(v)
+		}
+		for k, v := range t.MCPServers[i].BuildArgs {
+			t.MCPServers[i].BuildArgs[k] = os.ExpandEnv(v)
+		}
+	}
+
+	for i := range t.Resources {
+		t.Resources[i].Name = os.ExpandEnv(t.Resources[i].Name)
+		t.Resources[i].Image = os.ExpandEnv(t.Resources[i].Image)
+		t.Resources[i].Network = os.ExpandEnv(t.Resources[i].Network)
+
+		for k, v := range t.Resources[i].Env {
+			t.Resources[i].Env[k] = os.ExpandEnv(v)
+		}
+	}
+}
+
+// resolveRelativePaths resolves local source paths relative to the topology file.
+func resolveRelativePaths(t *Topology, basePath string) {
+	for i := range t.MCPServers {
+		if t.MCPServers[i].Source != nil && t.MCPServers[i].Source.Type == "local" {
+			if !filepath.IsAbs(t.MCPServers[i].Source.Path) {
+				t.MCPServers[i].Source.Path = filepath.Join(basePath, t.MCPServers[i].Source.Path)
+			}
+		}
+	}
+}
