@@ -61,6 +61,7 @@ export function Canvas() {
     const data = node.data;
     if (data.type === 'gateway') return COLORS.primary;
     if (data.type === 'agent') return COLORS.tertiary;
+    if (data.type === 'a2a-agent') return COLORS.secondary;
 
     const status = data.status as string | undefined;
     if (status === 'running') return COLORS.statusRunning;
