@@ -202,7 +202,9 @@ func TestHandler_TasksGet(t *testing.T) {
 	var sendResp struct {
 		Result SendMessageResult `json:"result"`
 	}
-	json.NewDecoder(rec.Body).Decode(&sendResp)
+	if err := json.NewDecoder(rec.Body).Decode(&sendResp); err != nil {
+		t.Fatalf("Failed to decode send response: %v", err)
+	}
 	taskID := sendResp.Result.Task.ID
 
 	// Now get the task
@@ -224,7 +226,9 @@ func TestHandler_TasksGet(t *testing.T) {
 	}
 
 	var getResp Response
-	json.NewDecoder(rec.Body).Decode(&getResp)
+	if err := json.NewDecoder(rec.Body).Decode(&getResp); err != nil {
+		t.Fatalf("Failed to decode get response: %v", err)
+	}
 
 	if getResp.Error != nil {
 		t.Errorf("Unexpected error: %v", getResp.Error)
@@ -256,7 +260,9 @@ func TestHandler_TasksList(t *testing.T) {
 	}
 
 	var resp Response
-	json.NewDecoder(rec.Body).Decode(&resp)
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if resp.Error != nil {
 		t.Errorf("Unexpected error: %v", resp.Error)
@@ -284,7 +290,9 @@ func TestHandler_InvalidMethod(t *testing.T) {
 	h.ServeHTTP(rec, req)
 
 	var resp Response
-	json.NewDecoder(rec.Body).Decode(&resp)
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if resp.Error == nil {
 		t.Error("Expected error for invalid method")
@@ -307,7 +315,9 @@ func TestHandler_InvalidJSON(t *testing.T) {
 	h.ServeHTTP(rec, req)
 
 	var resp Response
-	json.NewDecoder(rec.Body).Decode(&resp)
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if resp.Error == nil {
 		t.Error("Expected error for invalid JSON")
