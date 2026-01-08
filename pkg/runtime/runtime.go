@@ -272,6 +272,7 @@ func (r *Runtime) startResource(ctx context.Context, topo *config.Topology, res 
 		Port:        0, // Resources don't expose MCP ports
 		NetworkName: networkName,
 		Labels:      ManagedLabels(topo.Name, res.Name, false),
+		Volumes:     res.Volumes,
 	}
 
 	containerID, err = CreateContainer(ctx, r.cli, cfg)
