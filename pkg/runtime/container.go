@@ -23,7 +23,8 @@ type ContainerConfig struct {
 	HostPort    int    // Host port to publish (0 = auto-assign)
 	NetworkName string
 	Labels      map[string]string
-	Transport   string // "http" or "stdio"
+	Transport   string   // "http" or "stdio"
+	Volumes     []string // Volume mounts in "host:container" or "host:container:mode" format
 }
 
 // CreateContainer creates a new container with the given configuration.
@@ -69,6 +70,7 @@ func CreateContainer(ctx context.Context, cli dockerclient.DockerClient, cfg Con
 	hostConfig := &container.HostConfig{
 		NetworkMode:  container.NetworkMode(cfg.NetworkName),
 		PortBindings: portBindings,
+		Binds:        cfg.Volumes,
 	}
 
 	networkConfig := &network.NetworkingConfig{
