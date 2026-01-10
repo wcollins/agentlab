@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Terminal, Box, Bot, ChevronDown, ChevronRight, Wrench, FileText, Sparkles, Globe, Server, Zap, Cpu } from 'lucide-react';
+import { X, Terminal, Box, Bot, ChevronDown, ChevronRight, Wrench, FileText, Sparkles, Globe, Server, Zap, Cpu, KeyRound } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { Badge } from '../ui/Badge';
 import { ToolList } from '../ui/ToolList';
@@ -24,23 +24,23 @@ export function Sidebar() {
   const isAgent = selectedData.type === 'agent';
   const data = selectedData as unknown as MCPServerNodeData | ResourceNodeData | AgentNodeData;
 
-  // For MCP servers, determine if external or local process
+  // For MCP servers, determine if external, local process, or SSH
   const serverData = isServer ? (data as MCPServerNodeData) : null;
   const isExternal = serverData?.external ?? false;
   const isLocalProcess = serverData?.localProcess ?? false;
-  const isNonContainer = isExternal || isLocalProcess;
+  const isSSH = serverData?.ssh ?? false;
 
   // For agents, determine variant and A2A capability
   const agentData = isAgent ? (data as AgentNodeData) : null;
   const isRemote = agentData?.variant === 'remote';
   const hasA2A = agentData?.hasA2A ?? false;
 
-  // Icon logic: Globe for external, Cpu for local process, Terminal for container-based
-  const Icon = isServer ? (isExternal ? Globe : isLocalProcess ? Cpu : Terminal) : isAgent ? Bot : Box;
+  // Icon logic: Globe for external, Cpu for local process, KeyRound for SSH, Terminal for container-based
+  const Icon = isServer ? (isExternal ? Globe : isLocalProcess ? Cpu : isSSH ? KeyRound : Terminal) : isAgent ? Bot : Box;
 
-  // Color logic: violet for external/local process, primary for container MCP, purple for local agents, teal for remote
+  // Color logic: violet for all MCP servers, purple for local agents, teal for remote agents/resources
   const colorClass = isServer
-    ? (isNonContainer ? 'external' : 'primary')
+    ? 'violet'
     : isAgent
       ? (isRemote ? 'secondary' : 'tertiary')
       : 'secondary';
@@ -67,10 +67,9 @@ export function Sidebar() {
       {/* Accent line */}
       <div className={cn(
         'absolute top-0 left-0 bottom-0 w-px',
-        colorClass === 'primary' && 'bg-gradient-to-b from-primary/40 via-primary/20 to-transparent',
+        colorClass === 'violet' && 'bg-gradient-to-b from-violet-500/40 via-violet-500/20 to-transparent',
         colorClass === 'tertiary' && 'bg-gradient-to-b from-tertiary/40 via-tertiary/20 to-transparent',
-        colorClass === 'secondary' && 'bg-gradient-to-b from-secondary/40 via-secondary/20 to-transparent',
-        colorClass === 'external' && 'bg-gradient-to-b from-violet-500/40 via-violet-500/20 to-transparent'
+        colorClass === 'secondary' && 'bg-gradient-to-b from-secondary/40 via-secondary/20 to-transparent'
       )} />
 
       {/* Header */}
@@ -78,18 +77,16 @@ export function Sidebar() {
         <div className="flex items-center gap-3 min-w-0">
           <div className={cn(
             'p-2 rounded-xl flex-shrink-0 border relative',
-            colorClass === 'primary' && 'bg-primary/10 border-primary/20',
+            colorClass === 'violet' && 'bg-violet-500/10 border-violet-500/20',
             colorClass === 'tertiary' && 'bg-tertiary/10 border-tertiary/20',
-            colorClass === 'secondary' && 'bg-secondary/10 border-secondary/20',
-            colorClass === 'external' && 'bg-violet-500/10 border-violet-500/20'
+            colorClass === 'secondary' && 'bg-secondary/10 border-secondary/20'
           )}>
             <Icon
               size={16}
               className={cn(
-                colorClass === 'primary' && 'text-primary',
+                colorClass === 'violet' && 'text-violet-400',
                 colorClass === 'tertiary' && 'text-tertiary',
-                colorClass === 'secondary' && 'text-secondary',
-                colorClass === 'external' && 'text-violet-400'
+                colorClass === 'secondary' && 'text-secondary'
               )}
             />
             {/* A2A indicator on icon */}
@@ -117,6 +114,12 @@ export function Sidebar() {
                 <span className="text-[9px] px-1 py-0.5 rounded font-medium bg-surface-highlight text-text-muted flex items-center gap-0.5">
                   <Cpu size={8} />
                   Local
+                </span>
+              )}
+              {isServer && isSSH && (
+                <span className="text-[9px] px-1 py-0.5 rounded font-medium bg-surface-highlight text-text-muted flex items-center gap-0.5">
+                  <KeyRound size={8} />
+                  SSH
                 </span>
               )}
               {isAgent && (
@@ -179,6 +182,15 @@ export function Sidebar() {
                 <span className="text-sm text-text-muted">Endpoint</span>
                 <span className="text-xs text-text-secondary font-mono truncate max-w-[180px] bg-background/50 px-2 py-1 rounded-md" title={(data as MCPServerNodeData).endpoint}>
                   {(data as MCPServerNodeData).endpoint}
+                </span>
+              </div>
+            )}
+
+            {isServer && isSSH && serverData?.sshHost && (
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-sm text-text-muted">SSH Host</span>
+                <span className="text-xs text-text-secondary font-mono truncate max-w-[180px] bg-background/50 px-2 py-1 rounded-md" title={serverData.sshHost}>
+                  {serverData.sshHost}
                 </span>
               </div>
             )}
