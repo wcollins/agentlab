@@ -368,8 +368,8 @@ func (c *ProcessClient) Close() error {
 		// Process exited gracefully
 		return nil
 	case <-time.After(5 * time.Second):
-		// Force kill
-		c.cmd.Process.Kill()
+		// Force kill - ignore error since process may have already exited
+		_ = c.cmd.Process.Kill()
 		<-done
 		return nil
 	}
