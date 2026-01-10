@@ -90,9 +90,10 @@ func Validate(t *Topology) error {
 		hasImage := server.Image != ""
 		hasSource := server.Source != nil
 		hasURL := server.URL != ""
-		hasCommand := len(server.Command) > 0 && !hasImage && !hasSource && !hasURL // command-only = local process
+		hasSSH := server.SSH != nil && len(server.Command) > 0
+		hasCommand := len(server.Command) > 0 && !hasImage && !hasSource && !hasURL && !hasSSH // command-only = local process
 
-		// Mutual exclusivity: must have exactly one of image, source, url, or command (local process)
+		// Mutual exclusivity: must have exactly one of image, source, url, command (local process), or ssh
 		count := 0
 		if hasImage {
 			count++
@@ -106,11 +107,14 @@ func Validate(t *Topology) error {
 		if hasCommand {
 			count++
 		}
+		if hasSSH {
+			count++
+		}
 
 		if count == 0 {
-			errs = append(errs, ValidationError{prefix, "must have 'image', 'source', 'url', or 'command'"})
+			errs = append(errs, ValidationError{prefix, "must have 'image', 'source', 'url', 'command', or 'ssh' with 'command'"})
 		} else if count > 1 {
-			errs = append(errs, ValidationError{prefix, "can only have one of 'image', 'source', 'url', or 'command'"})
+			errs = append(errs, ValidationError{prefix, "can only have one of 'image', 'source', 'url', 'command', or 'ssh'"})
 		}
 
 		// External server validation (URL-only)
@@ -144,6 +148,30 @@ func Validate(t *Topology) error {
 			// Network is not applicable for local process servers
 			if server.Network != "" {
 				errs = append(errs, ValidationError{prefix + ".network", "not applicable for local process servers"})
+			}
+		} else if server.IsSSH() {
+			// SSH server validation
+			sshPrefix := prefix + ".ssh"
+			if server.SSH.Host == "" {
+				errs = append(errs, ValidationError{sshPrefix + ".host", "is required"})
+			}
+			if server.SSH.User == "" {
+				errs = append(errs, ValidationError{sshPrefix + ".user", "is required"})
+			}
+			if server.SSH.Port < 0 || server.SSH.Port > 65535 {
+				errs = append(errs, ValidationError{sshPrefix + ".port", "must be between 0 and 65535"})
+			}
+			// Transport must be stdio for SSH servers (they use stdin/stdout over SSH)
+			if server.Transport != "" && server.Transport != "stdio" {
+				errs = append(errs, ValidationError{prefix + ".transport", "must be 'stdio' for SSH servers"})
+			}
+			// Port is not applicable for SSH servers (use ssh.port for SSH port)
+			if server.Port != 0 {
+				errs = append(errs, ValidationError{prefix + ".port", "should not be set for SSH servers (use ssh.port for SSH port)"})
+			}
+			// Network is not applicable for SSH servers
+			if server.Network != "" {
+				errs = append(errs, ValidationError{prefix + ".network", "not applicable for SSH servers"})
 			}
 		} else {
 			// Container-based server validation (existing logic)
