@@ -174,6 +174,8 @@ type MCPServerStatus struct {
 	Tools        []string `json:"tools"`
 	External     bool     `json:"external"`
 	LocalProcess bool     `json:"localProcess"`
+	SSH          bool     `json:"ssh"`
+	SSHHost      string   `json:"sshHost,omitempty"`
 }
 
 func (s *Server) getMCPServerStatuses() []MCPServerStatus {
@@ -189,6 +191,8 @@ func (s *Server) getMCPServerStatuses() []MCPServerStatus {
 			Tools:        ms.Tools,
 			External:     ms.External,
 			LocalProcess: ms.LocalProcess,
+			SSH:          ms.SSH,
+			SSHHost:      ms.SSHHost,
 		}
 	}
 	return statuses
