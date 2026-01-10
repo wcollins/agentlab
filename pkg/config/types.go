@@ -26,10 +26,19 @@ type MCPServer struct {
 	URL       string            `yaml:"url,omitempty"`       // External server URL (no container)
 	Port      int               `yaml:"port,omitempty"`      // For HTTP transport (container-based)
 	Transport string            `yaml:"transport,omitempty"` // "http" (default), "stdio", or "sse"
-	Command   []string          `yaml:"command,omitempty"`   // Override container command
+	Command   []string          `yaml:"command,omitempty"`   // Override container command or remote command for SSH
 	Env       map[string]string `yaml:"env,omitempty"`
 	BuildArgs map[string]string `yaml:"build_args,omitempty"`
 	Network   string            `yaml:"network,omitempty"`   // Network to join (for multi-network mode)
+	SSH       *SSHConfig        `yaml:"ssh,omitempty"`       // SSH connection config for remote servers
+}
+
+// SSHConfig defines SSH connection parameters for remote MCP servers.
+type SSHConfig struct {
+	Host         string `yaml:"host"`                    // Required: hostname or IP address
+	User         string `yaml:"user"`                    // Required: SSH username
+	Port         int    `yaml:"port,omitempty"`          // Optional: SSH port (default 22)
+	IdentityFile string `yaml:"identityFile,omitempty"`  // Optional: path to SSH private key
 }
 
 // IsExternal returns true if this is an external MCP server (URL-only, no container).
@@ -39,7 +48,12 @@ func (s *MCPServer) IsExternal() bool {
 
 // IsLocalProcess returns true if this is a local process MCP server (command-only, no container).
 func (s *MCPServer) IsLocalProcess() bool {
-	return len(s.Command) > 0 && s.Image == "" && s.Source == nil && s.URL == ""
+	return len(s.Command) > 0 && s.Image == "" && s.Source == nil && s.URL == "" && s.SSH == nil
+}
+
+// IsSSH returns true if this is an SSH-based MCP server (ssh config with command).
+func (s *MCPServer) IsSSH() bool {
+	return s.SSH != nil && len(s.Command) > 0 && s.Image == "" && s.Source == nil && s.URL == ""
 }
 
 // Source defines how to build an MCP server from source code.
