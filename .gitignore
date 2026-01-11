@@ -56,8 +56,8 @@ coverage.html
 tmp/
 temp/
 
-# Requirements
-requirements/
+# New features
+plan/
 
 # Vendor specific assistant files
 .claude/
