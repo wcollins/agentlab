@@ -108,6 +108,7 @@ export const POLLING = {
 
 // Tool naming
 // Delimiter between agent name and tool name in prefixed tool names.
-// Format: "agentname::toolname"
-// This matches the Go backend constant in pkg/mcp/router.go
-export const TOOL_NAME_DELIMITER = '::';
+// Format: "agentname__toolname"
+// This matches the Go backend constant in pkg/mcp/router.go (ToolNameDelimiter)
+// Uses double underscore to be compatible with Claude Desktop's tool name validation: ^[a-zA-Z0-9_-]{1,64}$
+export const TOOL_NAME_DELIMITER = '__';
