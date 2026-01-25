@@ -51,7 +51,7 @@ func NewGateway() *Gateway {
 		logger:   logging.NewDiscardLogger(),
 		serverInfo: ServerInfo{
 			Name:    "gridctl-gateway",
-			Version: "1.0.0",
+			Version: "dev",
 		},
 		serverMeta:  make(map[string]MCPServerConfig),
 		agentAccess: make(map[string][]string),
@@ -69,6 +69,13 @@ func (g *Gateway) SetLogger(logger *slog.Logger) {
 // SetDockerClient sets the Docker client for stdio transport.
 func (g *Gateway) SetDockerClient(cli dockerclient.DockerClient) {
 	g.dockerCli = cli
+}
+
+// SetVersion sets the gateway version string.
+func (g *Gateway) SetVersion(version string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.serverInfo.Version = version
 }
 
 // Router returns the tool router.

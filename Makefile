@@ -1,5 +1,11 @@
 .PHONY: all build build-web build-go dev clean help test test-coverage test-integration mock-servers clean-mock-servers
 
+# Version from git tags (fallback to dev)
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
+
 # Default target
 all: build
 
@@ -21,13 +27,13 @@ build-web:
 
 # Build the Go binary
 build-go:
-	@echo "Building Go binary..."
+	@echo "Building Go binary ($(VERSION))..."
 	@if [ -d cmd/gridctl/web/dist ]; then \
 		echo "Including embedded web assets..."; \
-		go build -tags embed_web -o gridctl ./cmd/gridctl; \
+		go build -tags embed_web -ldflags "$(LDFLAGS)" -o gridctl ./cmd/gridctl; \
 	else \
 		echo "Building without web assets (run make build-web first to include UI)..."; \
-		go build -o gridctl ./cmd/gridctl; \
+		go build -ldflags "$(LDFLAGS)" -o gridctl ./cmd/gridctl; \
 	fi
 
 # Development mode - run Vite dev server
