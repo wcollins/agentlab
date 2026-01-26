@@ -40,7 +40,7 @@ const GatewayNode = memo(({ data, selected }: GatewayNodeProps) => {
         </div>
         <div>
           <h3 className="font-bold text-sm text-text-primary tracking-tight">{data.name}</h3>
-          <p className="text-[10px] text-text-muted font-mono tracking-wider">v{data.version}</p>
+          <p className="text-[10px] text-text-muted font-mono tracking-wider">{data.version}</p>
         </div>
       </div>
 
