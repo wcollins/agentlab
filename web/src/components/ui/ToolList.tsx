@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Wrench } from 'lucide-react';
 import { cn } from '../../lib/cn';
-import { useTopologyStore } from '../../stores/useTopologyStore';
+import { useStackStore } from '../../stores/useStackStore';
 import { parsePrefixedToolName } from '../../lib/transform';
 import { TOOL_NAME_DELIMITER } from '../../lib/constants';
 import type { Tool } from '../../types';
@@ -37,7 +37,7 @@ interface ToolListProps {
 }
 
 export function ToolList({ serverName, whitelist }: ToolListProps) {
-  const tools = useTopologyStore((s) => s.tools);
+  const tools = useStackStore((s) => s.tools);
 
   // Filter tools for this server (prefixed with serverName__)
   let serverTools = tools.filter((t) =>
