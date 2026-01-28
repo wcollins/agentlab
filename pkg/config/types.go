@@ -2,8 +2,8 @@ package config
 
 import "gopkg.in/yaml.v3"
 
-// Topology represents the complete gridctl configuration.
-type Topology struct {
+// Stack represents the complete gridctl configuration.
+type Stack struct {
 	Version    string      `yaml:"version"`
 	Name       string      `yaml:"name"`
 	Network    Network     `yaml:"network"`              // Single network (simple mode)
@@ -146,50 +146,50 @@ func (a *Agent) IsA2AEnabled() bool {
 	return a.A2A.Enabled || len(a.A2A.Skills) > 0
 }
 
-// SetDefaults applies default values to the topology.
-func (t *Topology) SetDefaults() {
-	if t.Version == "" {
-		t.Version = "1"
+// SetDefaults applies default values to the stack.
+func (s *Stack) SetDefaults() {
+	if s.Version == "" {
+		s.Version = "1"
 	}
 
 	// Progressive network defaults:
 	// - If networks[] is defined (advanced mode), don't apply single network defaults
 	// - If networks[] is not defined (simple mode), apply single network defaults
-	if len(t.Networks) == 0 {
+	if len(s.Networks) == 0 {
 		// Simple mode: use single network
-		if t.Network.Driver == "" {
-			t.Network.Driver = "bridge"
+		if s.Network.Driver == "" {
+			s.Network.Driver = "bridge"
 		}
-		if t.Network.Name == "" && t.Name != "" {
-			t.Network.Name = t.Name + "-net"
+		if s.Network.Name == "" && s.Name != "" {
+			s.Network.Name = s.Name + "-net"
 		}
 	} else {
 		// Advanced mode: set default driver for each network if not specified
-		for i := range t.Networks {
-			if t.Networks[i].Driver == "" {
-				t.Networks[i].Driver = "bridge"
+		for i := range s.Networks {
+			if s.Networks[i].Driver == "" {
+				s.Networks[i].Driver = "bridge"
 			}
 		}
 	}
 
-	for i := range t.MCPServers {
-		if t.MCPServers[i].Source != nil {
-			if t.MCPServers[i].Source.Dockerfile == "" {
-				t.MCPServers[i].Source.Dockerfile = "Dockerfile"
+	for i := range s.MCPServers {
+		if s.MCPServers[i].Source != nil {
+			if s.MCPServers[i].Source.Dockerfile == "" {
+				s.MCPServers[i].Source.Dockerfile = "Dockerfile"
 			}
-			if t.MCPServers[i].Source.Type == "git" && t.MCPServers[i].Source.Ref == "" {
-				t.MCPServers[i].Source.Ref = "main"
+			if s.MCPServers[i].Source.Type == "git" && s.MCPServers[i].Source.Ref == "" {
+				s.MCPServers[i].Source.Ref = "main"
 			}
 		}
 	}
 
-	for i := range t.Agents {
-		if t.Agents[i].Source != nil {
-			if t.Agents[i].Source.Dockerfile == "" {
-				t.Agents[i].Source.Dockerfile = "Dockerfile"
+	for i := range s.Agents {
+		if s.Agents[i].Source != nil {
+			if s.Agents[i].Source.Dockerfile == "" {
+				s.Agents[i].Source.Dockerfile = "Dockerfile"
 			}
-			if t.Agents[i].Source.Type == "git" && t.Agents[i].Source.Ref == "" {
-				t.Agents[i].Source.Ref = "main"
+			if s.Agents[i].Source.Type == "git" && s.Agents[i].Source.Ref == "" {
+				s.Agents[i].Source.Ref = "main"
 			}
 		}
 	}
