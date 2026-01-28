@@ -21,7 +21,7 @@ gridctl status
 
 ## 📖 What You'll Learn
 
-- Defining MCP servers in a topology
+- Defining MCP servers in a stack
 - Creating agents that consume MCP tools
 - Using `uses` to control tool access
 - Environment variable injection (`MCP_ENDPOINT`)
@@ -29,7 +29,7 @@ gridctl status
 ## ℹ️ Note: Infrastructure vs Application Logic
 
 These examples use **placeholder containers** (`alpine:latest` with `sleep`) to demonstrate
-topology, networking, and access control—not actual agent or MCP server logic.
+stack, networking, and access control—not actual agent or MCP server logic.
 
 To see examples with real MCP servers:
 
