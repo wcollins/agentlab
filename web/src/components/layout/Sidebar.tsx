@@ -5,7 +5,7 @@ import { Badge } from '../ui/Badge';
 import { ToolList } from '../ui/ToolList';
 import { ControlBar } from '../ui/ControlBar';
 import { getTransportIcon, getTransportColorClasses } from '../../lib/transport';
-import { useTopologyStore, useSelectedNodeData } from '../../stores/useTopologyStore';
+import { useStackStore, useSelectedNodeData } from '../../stores/useStackStore';
 import { useUIStore } from '../../stores/useUIStore';
 import type { MCPServerNodeData, ResourceNodeData, AgentNodeData, ToolSelector } from '../../types';
 
@@ -14,7 +14,7 @@ export function Sidebar() {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
   const setBottomPanelOpen = useUIStore((s) => s.setBottomPanelOpen);
-  const selectNode = useTopologyStore((s) => s.selectNode);
+  const selectNode = useStackStore((s) => s.selectNode);
 
   if (!selectedData || selectedData.type === 'gateway') {
     return null;
