@@ -60,7 +60,7 @@ func (m *MockWorkloadRuntime) Start(ctx context.Context, cfg WorkloadConfig) (*W
 	return &WorkloadStatus{
 		ID:       id,
 		Name:     cfg.Name,
-		Topology: cfg.Topology,
+		Stack: cfg.Stack,
 		Type:     cfg.Type,
 		State:    WorkloadStateRunning,
 		HostPort: cfg.HostPort,
@@ -127,7 +127,7 @@ func (m *MockWorkloadRuntime) EnsureNetwork(ctx context.Context, name string, op
 	return nil
 }
 
-func (m *MockWorkloadRuntime) ListNetworks(ctx context.Context, topology string) ([]string, error) {
+func (m *MockWorkloadRuntime) ListNetworks(ctx context.Context, stack string) ([]string, error) {
 	if m.ListNetworksErr != nil {
 		return nil, m.ListNetworksErr
 	}
@@ -190,7 +190,7 @@ func TestOrchestrator_Up_SimpleNetwork(t *testing.T) {
 	orch := NewOrchestrator(mockRT, mockBuilder)
 	orch.SetLogger(testLogger())
 
-	topo := &config.Topology{
+	topo := &config.Stack{
 		Version: "1",
 		Name:    "test-topo",
 		Network: config.Network{
@@ -238,7 +238,7 @@ func TestOrchestrator_Up_MultipleServers(t *testing.T) {
 	orch := NewOrchestrator(mockRT, mockBuilder)
 	orch.SetLogger(testLogger())
 
-	topo := &config.Topology{
+	topo := &config.Stack{
 		Version: "1",
 		Name:    "test-topo",
 		Network: config.Network{
@@ -277,7 +277,7 @@ func TestOrchestrator_Up_WithResources(t *testing.T) {
 	orch := NewOrchestrator(mockRT, mockBuilder)
 	orch.SetLogger(testLogger())
 
-	topo := &config.Topology{
+	topo := &config.Stack{
 		Version: "1",
 		Name:    "test-topo",
 		Network: config.Network{
@@ -311,7 +311,7 @@ func TestOrchestrator_Up_AdvancedNetworkMode(t *testing.T) {
 	orch := NewOrchestrator(mockRT, mockBuilder)
 	orch.SetLogger(testLogger())
 
-	topo := &config.Topology{
+	topo := &config.Stack{
 		Version: "1",
 		Name:    "test-topo",
 		Networks: []config.Network{
@@ -343,7 +343,7 @@ func TestOrchestrator_Up_ImageEnsured(t *testing.T) {
 	orch := NewOrchestrator(mockRT, mockBuilder)
 	orch.SetLogger(testLogger())
 
-	topo := &config.Topology{
+	topo := &config.Stack{
 		Version: "1",
 		Name:    "test-topo",
 		Network: config.Network{Name: "test-net", Driver: "bridge"},
@@ -372,7 +372,7 @@ func TestOrchestrator_Up_PingError(t *testing.T) {
 	orch := NewOrchestrator(mockRT, mockBuilder)
 	orch.SetLogger(testLogger())
 
-	topo := &config.Topology{
+	topo := &config.Stack{
 		Version: "1",
 		Name:    "test-topo",
 		Network: config.Network{Name: "test-net", Driver: "bridge"},
@@ -393,7 +393,7 @@ func TestOrchestrator_Up_NetworkCreateError(t *testing.T) {
 	orch := NewOrchestrator(mockRT, mockBuilder)
 	orch.SetLogger(testLogger())
 
-	topo := &config.Topology{
+	topo := &config.Stack{
 		Version: "1",
 		Name:    "test-topo",
 		Network: config.Network{Name: "test-net", Driver: "bridge"},
@@ -417,7 +417,7 @@ func TestOrchestrator_Up_WorkloadStartError(t *testing.T) {
 	orch := NewOrchestrator(mockRT, mockBuilder)
 	orch.SetLogger(testLogger())
 
-	topo := &config.Topology{
+	topo := &config.Stack{
 		Version: "1",
 		Name:    "test-topo",
 		Network: config.Network{Name: "test-net", Driver: "bridge"},
@@ -529,7 +529,7 @@ func TestOrchestrator_Status(t *testing.T) {
 			ID:       "1234567890123456",
 			Name:     "gridctl-test-server1",
 			Type:     WorkloadTypeMCPServer,
-			Topology: "test",
+			Stack: "test",
 			State:    WorkloadStateRunning,
 			Message:  "Up 1 minute",
 			Labels: map[string]string{
