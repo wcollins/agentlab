@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, Copy, Trash2, Pause, Play, Terminal } from 'luc
 import { cn } from '../../lib/cn';
 import { IconButton } from '../ui/IconButton';
 import { useUIStore } from '../../stores/useUIStore';
-import { useSelectedNodeData } from '../../stores/useTopologyStore';
+import { useSelectedNodeData } from '../../stores/useStackStore';
 import { fetchAgentLogs } from '../../lib/api';
 import { POLLING } from '../../lib/constants';
 import type { NodeData } from '../../types';
