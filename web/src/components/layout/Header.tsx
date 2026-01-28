@@ -2,7 +2,7 @@ import { RefreshCw, Settings, Zap } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { StatusDot } from '../ui/StatusDot';
 import { IconButton } from '../ui/IconButton';
-import { useTopologyStore } from '../../stores/useTopologyStore';
+import { useStackStore } from '../../stores/useStackStore';
 import logoSvg from '../../assets/brand/logo.svg';
 
 interface HeaderProps {
@@ -11,9 +11,9 @@ interface HeaderProps {
 }
 
 export function Header({ onRefresh, isRefreshing }: HeaderProps) {
-  const gatewayInfo = useTopologyStore((s) => s.gatewayInfo);
-  const mcpServers = useTopologyStore((s) => s.mcpServers);
-  const connectionStatus = useTopologyStore((s) => s.connectionStatus);
+  const gatewayInfo = useStackStore((s) => s.gatewayInfo);
+  const mcpServers = useStackStore((s) => s.mcpServers);
+  const connectionStatus = useStackStore((s) => s.connectionStatus);
 
   const runningCount = mcpServers.filter((s) => s.initialized).length;
   const totalCount = mcpServers.length;
