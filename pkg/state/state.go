@@ -11,11 +11,11 @@ import (
 
 // DaemonState represents the state of a running daemon.
 type DaemonState struct {
-	TopologyName string    `json:"topology_name"`
-	TopologyFile string    `json:"topology_file"`
-	PID          int       `json:"pid"`
-	Port         int       `json:"port"`
-	StartedAt    time.Time `json:"started_at"`
+	StackName string    `json:"stack_name"`
+	StackFile string    `json:"stack_file"`
+	PID       int       `json:"pid"`
+	Port      int       `json:"port"`
+	StartedAt time.Time `json:"started_at"`
 }
 
 // BaseDir returns the base gridctl directory (~/.gridctl/).
@@ -34,17 +34,17 @@ func LogDir() string {
 	return filepath.Join(BaseDir(), "logs")
 }
 
-// StatePath returns the path to a state file for a topology.
+// StatePath returns the path to a state file for a stack.
 func StatePath(name string) string {
 	return filepath.Join(StateDir(), name+".json")
 }
 
-// LogPath returns the path to a log file for a topology.
+// LogPath returns the path to a log file for a stack.
 func LogPath(name string) string {
 	return filepath.Join(LogDir(), name+".log")
 }
 
-// LockPath returns the path to a lock file for a topology.
+// LockPath returns the path to a lock file for a stack.
 func LockPath(name string) string {
 	return filepath.Join(StateDir(), name+".lock")
 }
@@ -76,7 +76,7 @@ func Save(state *DaemonState) error {
 		return fmt.Errorf("marshaling state: %w", err)
 	}
 
-	if err := os.WriteFile(StatePath(state.TopologyName), data, 0644); err != nil {
+	if err := os.WriteFile(StatePath(state.StackName), data, 0644); err != nil {
 		return fmt.Errorf("writing state file: %w", err)
 	}
 
@@ -220,7 +220,7 @@ func EnsureLogDir() error {
 	return os.MkdirAll(LogDir(), 0755)
 }
 
-// WithLock executes fn while holding an exclusive lock on the topology state.
+// WithLock executes fn while holding an exclusive lock on the stack state.
 // Returns error if lock cannot be acquired within timeout.
 func WithLock(name string, timeout time.Duration, fn func() error) error {
 	// Ensure directory exists
