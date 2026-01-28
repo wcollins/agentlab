@@ -6,16 +6,16 @@ import { Sidebar } from './components/layout/Sidebar';
 import { StatusBar } from './components/layout/StatusBar';
 import { BottomPanel } from './components/layout/BottomPanel';
 import { Canvas } from './components/graph/Canvas';
-import { useTopologyStore } from './stores/useTopologyStore';
+import { useStackStore } from './stores/useStackStore';
 import { useUIStore } from './stores/useUIStore';
 import { usePolling } from './hooks/usePolling';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function AppContent() {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const isLoading = useTopologyStore((s) => s.isLoading);
-  const error = useTopologyStore((s) => s.error);
-  const selectNode = useTopologyStore((s) => s.selectNode);
+  const isLoading = useStackStore((s) => s.isLoading);
+  const error = useStackStore((s) => s.error);
+  const selectNode = useStackStore((s) => s.selectNode);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
 
   const { fitView, zoomIn, zoomOut } = useReactFlow();
@@ -60,7 +60,7 @@ function AppContent() {
                 <div className="absolute inset-2 rounded-full border-2 border-secondary/30 border-b-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
               </div>
               <div>
-                <p className="text-text-secondary font-medium">Loading topology</p>
+                <p className="text-text-secondary font-medium">Loading stack</p>
                 <p className="text-text-muted text-sm mt-1">Connecting to gateway...</p>
               </div>
             </div>
