@@ -1124,7 +1124,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8180/api/stack/health
 
 #### `GET /api/stack/spec`
 
-Returns the raw `stack.yaml` content for the active stack.
+Returns the raw `stack.yaml` content for the active stack. This may contain authored credentials and is not the shareable export transform. Raw spec retrieval, editing, and saving remain unchanged.
 
 **Auth:** Yes
 
@@ -1139,7 +1139,13 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8180/api/stack/spec
 
 #### `GET /api/stack/export`
 
-Returns the active stack as sanitized exportable YAML (sensitive env values replaced with `${var:KEY}` placeholders; values already written as `${var:KEY}` or the deprecated `${vault:KEY}` alias are left untouched).
+Rereads the active stack configuration and returns semantic YAML without resolving environment or stored values. Authored references, including `$NAME`, `${NAME}`, `${var:KEY}`, and `${vault:KEY}`, retain their decoded content. The additive `notice` explains the authored-literal review requirement. The Stack spec view's Export YAML action uses this endpoint, displays its notice and failures, and never downloads raw editor content as a substitute.
+
+Nonempty inline credentials in gateway auth, downstream token/value/client-secret, tokenizer API key, source credential reference, and recognized sensitive environment keys reject the entire export. Nonempty default/replacement operands in those fields also reject export. Client IDs are not classified as secrets. Errors use the existing `{"error":"..."}` shape with HTTP 500 and bounded indexed locations, never credential values. No `content` is returned on failure.
+
+This policy does not detect arbitrary secrets in command arguments, encoded text, free-form strings, URL queries, or literal portions of mixed reference/literal strings. Review those before sharing. It never creates variables or rewrites the source. Recipients may need to supply variables and referenced files.
+
+This is a breaking security correction under Article VIII and must not ship in a patch or minor release. Migrate inline credentials to authored references without literal defaults, and supply their values separately. There is no resolved-export fallback. See [CLI export semantics](cli-reference.md#export-semantics) for inheritance and file behavior.
 
 **Auth:** Yes
 
@@ -1149,7 +1155,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8180/api/stack/export
 
 **Response:**
 ```json
-{ "content": "version: \"1\"\n...", "format": "yaml" }
+{ "content": "version: \"1\"\n...", "format": "yaml", "notice": "Export preserves authored references without resolving values. Review authored literals, including mixed reference/literal strings, before sharing." }
 ```
 
 #### `GET /api/stack/recipes`
