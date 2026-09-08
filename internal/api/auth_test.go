@@ -157,15 +157,15 @@ func TestAuthMiddleware_ProtectedPaths(t *testing.T) {
 	}
 }
 
-func TestAuthMiddleware_OptionsPassthrough(t *testing.T) {
+func TestAuthMiddleware_OptionsRequiresAuth(t *testing.T) {
 	handler := authMiddleware("bearer", "mysecret", "", okHandler())
 
 	req := loopbackRequest(http.MethodOptions, "/api/status", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200 for OPTIONS without auth, got %d", rec.Code)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 outside the terminal CORS layer, got %d", rec.Code)
 	}
 }
 
@@ -220,14 +220,14 @@ func TestAuthMiddleware_TimingSafe(t *testing.T) {
 }
 
 func TestIsProtectedPath(t *testing.T) {
-	protected := []string{"/api/status", "/api/tools", "/api/mcp-servers", "/mcp", "/sse", "/message", "/a2a/agent1", "/.well-known/agent.json"}
+	protected := []string{"/api/status", "/api/tools", "/api/mcp-servers", "/mcp", "/sse", "/message", "/groups/release/mcp", "/groups/release/sse", "/groups/unknown/mcp", "/a2a/agent1", "/.well-known/agent.json"}
 	for _, path := range protected {
 		if !isProtectedPath(path) {
 			t.Errorf("expected %s to be protected", path)
 		}
 	}
 
-	unprotected := []string{"/", "/index.html", "/assets/main.js", "/favicon.png", "/health", "/ready"}
+	unprotected := []string{"/", "/index.html", "/assets/main.js", "/favicon.png", "/health", "/ready", "/groups-lookalike/release/mcp", "/mcpx", "/apiary/status"}
 	for _, path := range unprotected {
 		if isProtectedPath(path) {
 			t.Errorf("expected %s to be unprotected", path)

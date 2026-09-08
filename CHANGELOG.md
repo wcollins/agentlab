@@ -10,6 +10,7 @@ All notable changes to gridctl will be documented in this file.
 
 ### Security
 
+- Configured gateway authentication now covers grouped MCP and SSE routes, including initialization, discovery, calls, stream replay, and session deletion. Grouped clients that omitted credentials must send the same bearer token or API-key header required by `/mcp` on every request. Public UI files, probes, terminal CORS preflight, and the exact state-validated downstream OAuth callback remain public; no-auth loopback, valid credential formats, and all supported MCP protocol generations remain unchanged (#1223)
 - Variable names beginning with `GRIDCTL_`, plus `OP_CONNECT_TOKEN` and `OP_SERVICE_ACCOUNT_TOKEN`, are now reserved for gridctl bootstrap and control-plane credentials. New store writes reject them, imports skip them with key-only warnings, exports and variable-set injection omit legacy entries, and local MCP processes no longer inherit them from the gridctl daemon. `${var:...}` and `${vault:...}` references to reserved keys remain literal and return a distinct resolution error without falling back to the ambient environment. Ordinary environment interpolation of non-credential `GRIDCTL_*` values remains supported. This is a compatibility-sensitive security boundary for the next major release; remove legacy entries with `gridctl var delete KEY --force` after moving any downstream credential to a non-reserved name (#1186)
 
 ### Bug Fixes

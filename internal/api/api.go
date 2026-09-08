@@ -242,7 +242,8 @@ func (s *Server) SetAllowedHosts(hosts []string) {
 }
 
 // SetAuth configures authentication for the server.
-// When configured, all requests (except /health and /ready) must include a valid token.
+// When configured, operational routes require a valid token; the UI, probes,
+// terminal CORS preflight, and state-validated OAuth callback remain public.
 func (s *Server) SetAuth(authType, token, header string) {
 	s.authType = authType
 	s.authToken = token

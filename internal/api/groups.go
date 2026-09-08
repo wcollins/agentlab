@@ -23,8 +23,8 @@ func (s *Server) handleGroupMCP(w http.ResponseWriter, r *http.Request) {
 // endpoints, pointing clients at the group's streamable path.
 func (s *Server) handleGroupSSE(w http.ResponseWriter, r *http.Request) {
 	// Echo only the configured group name, never the raw path input: the
-	// exact-match lookup against the policy's name list both authorizes the
-	// endpoint and yields a config-originated string for the response.
+	// exact-match lookup against the policy's name list validates the group
+	// and yields a config-originated string for the response, not caller identity.
 	name := s.configuredGroupName(r.PathValue("name"))
 	if name == "" {
 		http.NotFound(w, r)
