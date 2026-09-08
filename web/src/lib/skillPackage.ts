@@ -69,8 +69,12 @@ export function installedManagedDirs(files: SkillFile[]): Set<ManagedDir> {
  * no files, and warning on absent data is exactly the dishonesty this module
  * exists to avoid.
  */
-export function missingManagedDirs(body: string | null, files: SkillFile[] | null): ManagedDir[] {
-  if (!body || files === null) return [];
+export function missingManagedDirs(
+  body: string | null,
+  files: SkillFile[] | null,
+  supportingFilesInstalled = false,
+): ManagedDir[] {
+  if (!body || files === null || supportingFilesInstalled) return [];
   const installed = installedManagedDirs(files);
   return referencedManagedDirs(body).filter((dir) => !installed.has(dir));
 }
