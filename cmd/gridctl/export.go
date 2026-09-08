@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/gridctl/gridctl/pkg/config"
 	"github.com/gridctl/gridctl/pkg/skills"
 	"github.com/gridctl/gridctl/pkg/state"
-
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -22,14 +25,15 @@ var (
 
 var exportCmd = &cobra.Command{
 	Use:   "export",
-	Short: "Export a stack spec from current running state",
-	Long: `Generate a complete Stack Spec from the currently running deployment.
-Reverse-engineers stack.yaml from gateway state files.
-
-Secrets are never included — only ${var:KEY} placeholders are used.
-If remote skills are active, a skills.yaml is also generated.`,
+	Short: "Export the running deployment's authored configuration",
+	Long: `Reread the stack configuration associated with the running deployment.
+Export preserves authored variable expressions rather than effective runtime values.
+Recognized inline credentials block export. Review other authored literals before
+sharing; arbitrary commands, encoded content, and URL queries are not secret-scanned.
+This is a semantic export, not a byte-for-byte copy. Recipients may need variables
+and the same relative file layout. YAML directory exports may include skills.yaml.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runExport()
+		return runExportContext(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr())
 	},
 }
 
@@ -38,165 +42,130 @@ func init() {
 	exportCmd.Flags().StringVar(&exportFormat, "format", "yaml", "Output format: yaml or json")
 }
 
-func runExport() error {
-	// Find running stacks
+func runExportContext(ctx context.Context, stdout, stderr io.Writer) error {
 	states, err := state.List()
 	if err != nil {
 		return fmt.Errorf("listing running stacks: %w", err)
 	}
-
-	var running *state.DaemonState
-	for i, s := range states {
+	for i := range states {
 		if state.IsRunning(&states[i]) {
-			running = &s
-			break
+			return exportStackFile(ctx, states[i].StackFile, stdout, stderr)
 		}
 	}
+	return fmt.Errorf("no running stack found")
+}
 
-	if running == nil {
-		return fmt.Errorf("no running stack found")
+func exportStackFile(ctx context.Context, path string, stdout, stderr io.Writer) error {
+	if exportFormat != "yaml" && exportFormat != "json" {
+		return fmt.Errorf("export format must be yaml or json")
 	}
-
-	// Load the running stack's config
-	stack, _, err := config.ValidateStackFile(running.StackFile)
+	stack, sources, err := config.ExportStack(ctx, path)
 	if err != nil {
-		return fmt.Errorf("loading running stack config: %w", err)
+		return err
 	}
-
-	// Sanitize secrets — replace raw env values that look like secrets with vault refs
-	sanitizeSecrets(stack)
-
+	var data []byte
 	if exportFormat == "json" {
-		return outputJSON(stack)
+		data, err = json.MarshalIndent(stack, "", "  ")
+	} else {
+		data, err = yaml.Marshal(stack)
 	}
-	return outputYAML(stack)
-}
-
-// sanitizeSecrets replaces raw secret-like env values with ${var:KEY} placeholders.
-func sanitizeSecrets(stack *config.Stack) {
-	for i := range stack.MCPServers {
-		sanitizeEnvMap(stack.MCPServers[i].Env, stack.MCPServers[i].Name)
-	}
-	for i := range stack.Resources {
-		sanitizeEnvMap(stack.Resources[i].Env, stack.Resources[i].Name)
-	}
-}
-
-// sanitizeEnvMap replaces values that are not already variable references
-// and look like sensitive values with ${var:KEY} placeholders. ${vault:KEY}
-// is the deprecated alias of ${var:KEY}; both are recognized on input, only
-// the canonical form is generated.
-func sanitizeEnvMap(env map[string]string, prefix string) {
-	for key, val := range env {
-		// Already a variable reference — leave as-is
-		if strings.HasPrefix(val, "${var:") || strings.HasPrefix(val, "${vault:") {
-			continue
-		}
-		// Check if key looks sensitive
-		if isSensitiveKey(key) {
-			env[key] = fmt.Sprintf("${var:%s_%s}", prefix, key)
-		}
-	}
-}
-
-// isSensitiveKey returns true if the env var key likely holds a secret.
-func isSensitiveKey(key string) bool {
-	sensitive := []string{
-		"PASSWORD", "SECRET", "TOKEN", "API_KEY", "APIKEY",
-		"PRIVATE_KEY", "ACCESS_KEY", "AUTH", "CREDENTIAL",
-	}
-	upper := strings.ToUpper(key)
-	for _, s := range sensitive {
-		if strings.Contains(upper, s) {
-			return true
-		}
-	}
-	return false
-}
-
-func outputJSON(stack *config.Stack) error {
-	data, err := json.MarshalIndent(stack, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshaling JSON: %w", err)
+		return fmt.Errorf("export: cannot encode stack")
 	}
-
-	if exportOutputDir != "" {
-		return writeToDir(exportOutputDir, "stack.json", data)
-	}
-
-	fmt.Print(string(data))
-	return nil
-}
-
-func outputYAML(stack *config.Stack) error {
-	data, err := yaml.Marshal(stack)
-	if err != nil {
-		return fmt.Errorf("marshaling YAML: %w", err)
-	}
-
-	if exportOutputDir != "" {
-		if err := writeToDir(exportOutputDir, "stack.yaml", data); err != nil {
+	if exportOutputDir == "" {
+		if _, err := fmt.Fprintln(stderr, config.ExportNotice); err != nil {
 			return err
 		}
-
-		// Generate skills.yaml if remote skills are active
-		return exportSkillsConfig(exportOutputDir)
+		_, err = stdout.Write(data)
+		return err
 	}
-
-	fmt.Print(string(data))
-	return nil
+	artifacts := []exportArtifact{{"stack." + exportFormat, data}}
+	if exportFormat == "yaml" {
+		sidecar, err := exportSkillsData(ctx)
+		if err != nil {
+			return err
+		}
+		if sidecar != nil {
+			artifacts = append(artifacts, exportArtifact{"skills.yaml", sidecar})
+		}
+	}
+	return writeExportArtifacts(ctx, exportOutputDir, sources, artifacts, stderr)
 }
 
-func writeToDir(dir, filename string, data []byte) error {
+type exportArtifact struct {
+	name string
+	data []byte
+}
+
+func writeExportArtifacts(ctx context.Context, dir string, sources []string, artifacts []exportArtifact, stderr io.Writer) error {
+	for _, artifact := range artifacts {
+		target := filepath.Join(dir, artifact.name)
+		info, err := os.Stat(target)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("export: cannot inspect output destination")
+		}
+		for _, source := range sources {
+			sourceInfo, err := os.Stat(source)
+			if err != nil {
+				return fmt.Errorf("export: cannot verify source protection")
+			}
+			if info != nil && os.SameFile(info, sourceInfo) {
+				return fmt.Errorf("export: output would overwrite a source stack or ancestor; choose another directory")
+			}
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("creating output directory: %w", err)
+		return fmt.Errorf("export: cannot create output directory; no artifacts written")
 	}
-
-	path := filepath.Join(dir, filename)
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("writing %s: %w", path, err)
+	written := []string{}
+	for _, artifact := range artifacts {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("export cancelled; already written: %v: %w", written, err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, artifact.name), artifact.data, 0644); err != nil {
+			return fmt.Errorf("export: writing %s failed (it may be incomplete); already written: %v", artifact.name, written)
+		}
+		written = append(written, artifact.name)
 	}
-
-	fmt.Printf("Wrote %s\n", path)
-	return nil
+	_, err := fmt.Fprintf(stderr, "%s\nWrote %v\n", config.ExportNotice, written)
+	return err
 }
 
-// exportSkillsConfig generates a skills.yaml if any remote skills exist.
-func exportSkillsConfig(dir string) error {
-	lf, err := skills.ReadLockFile(skills.LockFilePath())
-	if err != nil || len(lf.Sources) == 0 {
-		return nil
+func exportSkillsData(ctx context.Context) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-
-	type skillsYAML struct {
+	lf, err := skills.ReadLockFile(skills.LockFilePath())
+	if err != nil {
+		return nil, fmt.Errorf("export: cannot read skills metadata")
+	}
+	if len(lf.Sources) == 0 {
+		return nil, nil
+	}
+	names := make([]string, 0, len(lf.Sources))
+	for name := range lf.Sources {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var out struct {
 		Sources []skillSourceYAML `yaml:"sources"`
 	}
-
-	type sourceEntry struct {
-		name string
-		src  skills.LockedSource
+	for i, name := range names {
+		src := lf.Sources[name]
+		u, err := url.Parse(src.Repo)
+		if (err != nil && strings.Contains(src.Repo, "://")) || (err == nil && u.User != nil && u.User.String() != "") {
+			return nil, fmt.Errorf("export: skills.sources[%d].repo: invalid URL or credential-bearing userinfo; remove userinfo before exporting", i)
+		}
+		out.Sources = append(out.Sources, skillSourceYAML{Name: name, Repo: src.Repo, Ref: src.Ref})
 	}
-
-	var entries []sourceEntry
-	for name, src := range lf.Sources {
-		entries = append(entries, sourceEntry{name, src})
-	}
-
-	sy := skillsYAML{}
-	for _, entry := range entries {
-		sy.Sources = append(sy.Sources, skillSourceYAML{
-			Name: entry.name,
-			Repo: entry.src.Repo,
-			Ref:  entry.src.Ref,
-		})
-	}
-
-	data, err := yaml.Marshal(sy)
+	data, err := yaml.Marshal(out)
 	if err != nil {
-		return fmt.Errorf("marshaling skills.yaml: %w", err)
+		return nil, fmt.Errorf("export: cannot encode skills metadata")
 	}
-
-	return writeToDir(dir, "skills.yaml", data)
+	return data, nil
 }
 
 type skillSourceYAML struct {

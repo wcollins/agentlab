@@ -1,8 +1,8 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { GitCompareArrows, AlertCircle, CheckCircle2, AlertTriangle, FlaskConical, RefreshCw } from 'lucide-react';
 import { useSpecStore } from '../../stores/useSpecStore';
 import { useStackStore } from '../../stores/useStackStore';
-import { fetchStackSpec, fetchStackHealth, validateStackSpec } from '../../lib/api';
+import { fetchStackSpec, fetchStackHealth, validateStackSpec, fetchStackExport } from '../../lib/api';
 import type { ValidationIssue, IssueSeverity } from '../../types';
 
 // YAML syntax highlighting tokens
@@ -94,6 +94,37 @@ export function SpecTab() {
   const validation = useSpecStore((s) => s.validation);
   const openCompareModal = useSpecStore((s) => s.openCompareModal);
   const pollRef = useRef<ReturnType<typeof setInterval>>(null);
+  const exportPending = useRef(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const [exportNotice, setExportNotice] = useState('Export preserves authored references without resolving values. Review authored literals, including mixed reference/literal strings, before sharing.');
+
+  async function exportSpec() {
+    if (exportPending.current) return;
+    exportPending.current = true;
+    setExporting(true);
+    setExportError('');
+    try {
+      const result = await fetchStackExport();
+      setExportNotice(result.notice);
+      const url = URL.createObjectURL(new Blob([result.content], { type: 'application/yaml' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'stack.yaml';
+      document.body.appendChild(link);
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Export failed; no download created.');
+    } finally {
+      exportPending.current = false;
+      setExporting(false);
+    }
+  }
 
   const loadSpec = useCallback(async () => {
     const store = useSpecStore.getState();
@@ -155,9 +186,9 @@ export function SpecTab() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/30 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-text-muted font-mono">{spec.path}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b border-border/30 flex-shrink-0">
+        <div className="flex flex-wrap min-w-0 items-center gap-3">
+          <span className="text-xs text-text-muted font-mono break-all">{spec.path}</span>
           {validation && (
             <div className="flex items-center gap-1.5">
               {validation.valid ? (
@@ -185,6 +216,10 @@ export function SpecTab() {
           )}
         </div>
 
+        <button type="button" onClick={exportSpec} disabled={exporting} aria-describedby="stack-export-notice"
+          className="px-2.5 py-1 rounded-md text-xs font-medium text-text-muted hover:text-text-secondary hover:bg-surface-highlight/40 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">
+          {exporting ? 'Exporting...' : 'Export YAML'}
+        </button>
         <button
           onClick={openCompareModal}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 text-text-muted hover:text-text-secondary hover:bg-surface-highlight/40"
@@ -193,6 +228,8 @@ export function SpecTab() {
           Compare to running
         </button>
       </div>
+      <p id="stack-export-notice" role="status" className="px-4 py-2 text-xs text-text-muted">{exportNotice} The raw spec below may contain authored credentials.</p>
+      {exportError && <p role="alert" className="px-4 py-2 text-xs text-status-error break-words">{exportError}</p>}
 
       {/* Enabled experimental flags — read-only rows (flags are configured
           in stack.yaml, or via GRIDCTL_EXPERIMENTAL_* env vars, and cannot

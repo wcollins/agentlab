@@ -410,58 +410,23 @@ func (s *Server) handleStackExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stack, _, err := config.ValidateStackFile(s.stackFile)
+	stack, _, err := config.ExportStack(r.Context(), s.stackFile)
 	if err != nil {
 		writeJSONError(w, "Failed to load stack: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Sanitize secrets
-	sanitizeStackSecrets(stack)
-
 	data, err := yaml.Marshal(stack)
 	if err != nil {
-		writeJSONError(w, "Failed to marshal stack: "+err.Error(), http.StatusInternalServerError)
+		writeJSONError(w, "Failed to encode stack export", http.StatusInternalServerError)
 		return
 	}
 
 	writeJSON(w, map[string]any{
 		"content": string(data),
 		"format":  "yaml",
+		"notice":  config.ExportNotice,
 	})
-}
-
-// sanitizeStackSecrets replaces sensitive env values with variable-store
-// placeholders. Values that are already store references are left untouched in
-// either form: ${vault:KEY} is the deprecated alias of ${var:KEY}, so both are
-// recognized on input, but only the canonical form is generated.
-func sanitizeStackSecrets(stack *config.Stack) {
-	sensitiveKeys := []string{"PASSWORD", "SECRET", "TOKEN", "API_KEY", "APIKEY", "PRIVATE_KEY", "ACCESS_KEY", "AUTH", "CREDENTIAL"}
-
-	sanitize := func(env map[string]string, prefix string) {
-		if env == nil {
-			return
-		}
-		for key, val := range env {
-			if strings.HasPrefix(val, "${var:") || strings.HasPrefix(val, "${vault:") {
-				continue
-			}
-			upper := strings.ToUpper(key)
-			for _, s := range sensitiveKeys {
-				if strings.Contains(upper, s) {
-					env[key] = "${var:" + prefix + "_" + key + "}"
-					break
-				}
-			}
-		}
-	}
-
-	for i := range stack.MCPServers {
-		sanitize(stack.MCPServers[i].Env, stack.MCPServers[i].Name)
-	}
-	for i := range stack.Resources {
-		sanitize(stack.Resources[i].Env, stack.Resources[i].Name)
-	}
 }
 
 // handleStackRecipes returns available stack recipes/templates.

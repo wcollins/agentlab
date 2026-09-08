@@ -1422,8 +1422,8 @@ export async function fetchStackSpec(): Promise<StackSpec> {
  * Export stack spec from running state
  * GET /api/stack/export
  */
-export async function fetchStackExport(): Promise<{ content: string; format: string }> {
-  return fetchJSON<{ content: string; format: string }>('/api/stack/export');
+export async function fetchStackExport(): Promise<{ content: string; format: string; notice: string }> {
+  return fetchJSON<{ content: string; format: string; notice: string }>('/api/stack/export');
 }
 
 /**

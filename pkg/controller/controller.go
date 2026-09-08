@@ -5,7 +5,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -534,9 +533,19 @@ func (sc *StackController) createPrinter(stack *config.Stack) *output.Printer {
 	printer.Info("Parsing & checking stack", "file", sc.config.StackPath)
 
 	if sc.config.Verbose {
-		fmt.Println("\nFull stack (JSON):")
-		data, _ := json.MarshalIndent(stack, "", "  ")
-		fmt.Println(logging.RedactString(string(data)))
+		printer.Info("Stack summary", "servers", len(stack.MCPServers), "resources", len(stack.Resources),
+			"gateway_configured", stack.Gateway != nil, "telemetry_configured", stack.Telemetry != nil,
+			"code_mode_enabled", stack.Gateway != nil && stack.Gateway.CodeMode == "on",
+			"gateway_auth_configured", stack.Gateway != nil && stack.Gateway.Auth != nil)
+		for i, server := range stack.MCPServers {
+			transport := server.Transport
+			switch transport {
+			case "stdio", "http", "sse", "streamable-http", "":
+			default:
+				transport = "other"
+			}
+			printer.Info("Server summary", "index", i, "transport", transport, "auth_configured", server.Auth != nil)
+		}
 	}
 
 	return printer

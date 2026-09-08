@@ -1,10 +1,44 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"gopkg.in/yaml.v3"
 )
+
+// MarshalJSON retains explicit empty scopes instead of broadening delivery.
+func (r SecretSetRef) MarshalJSON() ([]byte, error) {
+	out := map[string]any{"name": r.Name}
+	if len(r.Servers) > 0 {
+		out["servers"] = r.Servers
+	}
+	if len(r.Resources) > 0 {
+		out["resources"] = r.Resources
+	}
+	if r.Scoped() && len(r.Servers) == 0 && len(r.Resources) == 0 {
+		out["servers"] = []string{}
+	}
+	return json.Marshal(out)
+}
+
+// UnmarshalJSON preserves explicit scope presence in exported JSON.
+func (r *SecretSetRef) UnmarshalJSON(data []byte) error {
+	type rawSecretSetRef SecretSetRef
+	var raw rawSecretSetRef
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	_, servers := fields["servers"]
+	_, resources := fields["resources"]
+	raw.scopeDeclared = servers || resources
+	*r = SecretSetRef(raw)
+	return nil
+}
 
 // SecretSetRef is one entry in the `secrets.sets` block: a variable set whose
 // members are injected into container environments at load time (see
