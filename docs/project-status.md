@@ -33,7 +33,7 @@ Current as of **v0.1.0-rc.3 plus `[Unreleased]`** (see [CHANGELOG.md](../CHANGEL
 | Podman runtime | Stable | Backward compatible in 0.x |
 | Skills registry (prompt-only) | Stable | Backward compatible in 0.x |
 | Library workspace (UI) | Stable | No API guarantee (internal) |
-| Stack export (export) | Stable | Backward compatible in 0.x |
+| Stack export (export) | Stable | Breaking security correction in `[Unreleased]`: references stay unresolved, and recognized inline credentials reject export. Requires a major release under Article VIII; see [migration guidance](cli-reference.md#export-semantics) |
 | Spec drift detection | Stable | No API guarantee (internal) |
 | Visual spec builder | Stable | No API guarantee (internal) |
 | Skills import (skill add) | Stable | Backward compatible in 0.x |

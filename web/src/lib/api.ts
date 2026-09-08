@@ -1419,11 +1419,27 @@ export async function fetchStackSpec(): Promise<StackSpec> {
 // === Stack Export & Canvas APIs ===
 
 /**
- * Export stack spec from running state
+ * Export the associated stack spec without resolving authored references
  * GET /api/stack/export
  */
-export async function fetchStackExport(): Promise<{ content: string; format: string }> {
-  return fetchJSON<{ content: string; format: string }>('/api/stack/export');
+export async function fetchStackExport(): Promise<{ content: string; format: string; notice: string }> {
+  const response = await fetch(`${API_BASE}/api/stack/export`, {
+    headers: buildHeaders(),
+  });
+
+  if (response.status === 401) throw new AuthError('Authentication required');
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new HTTPError(
+      response.status,
+      typeof data?.error === 'string' && data.error
+        ? data.error
+        : `GET /api/stack/export failed: ${response.status}`,
+    );
+  }
+
+  return response.json();
 }
 
 /**

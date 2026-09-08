@@ -1417,6 +1417,8 @@ String values in the configuration support variable expansion:
 
 Variable expansion is applied to string values across all configuration sections including `env`, `token`, `url`, and MCP-server `volumes` entries.
 
+Stack export is a separate, non-resolving operation: the CLI, REST export endpoint, and web Export YAML action preserve authored expressions instead of substituting values. Nonempty inline literals and default/replacement operands in recognized sensitive fields block export, even when a sensitive-looking environment key actually holds nonsecret configuration. Use references without literal fallback operands in those fields, and provision recipient variables separately. Ordinary defaults and mixed reference/literal strings are preserved, so review authored literals before sharing. This does not change runtime expansion or raw spec editing. See [export semantics](cli-reference.md#export-semantics) for the field policy and inheritance limits.
+
 ### Variables vs Secrets
 
 The variable store is unified: it holds both secrets and non-sensitive

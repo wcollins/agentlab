@@ -18,6 +18,11 @@ All notable changes to gridctl will be documented in this file.
 
 ### Added
 
+- Export YAML in the Stack spec view downloads the reference-preserving export
+  from `/api/stack/export`, with an authored-literal review notice, pending-state
+  protection, and visible failures instead of a substitute raw download. Raw
+  spec viewing, editing, and saving remain unchanged. See the root changelog's
+  breaking export policy and migration guidance (#1222).
 - Secret generator in the Variables workspace: a wand button beside the
   value input (quick-add form, wizard create-new form, and inline edit)
   opens an inline panel to generate a cryptographically secure random

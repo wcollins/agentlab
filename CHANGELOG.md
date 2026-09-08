@@ -6,16 +6,19 @@ All notable changes to gridctl will be documented in this file.
 
 ### Documentation
 
+- Correct stack export's README and stability claims, add migration and output-failure guidance, and demonstrate YAML, JSON, and directory exports with the local-process example (#1222).
 - Correct the API reference's grouped-auth exemptions and remote gateway setup guidance, and clarify credential requirements in group and client-linking documentation (#1223).
 - Python source examples now include a practical daily stack that builds the Fetch server from an exact PyPI release and the Time server from a commit-pinned project in the official MCP servers monorepo. The guide explains source pins, generated command selection, and build and runtime network behavior.
 
 ### Security
 
+- Breaking: stack exports now preserve authored references without resolving environment or stored values and reject recognized inline credentials and sensitive default/replacement operands. Exports reread configuration rather than reconstructing runtime state. Replace inline credentials with authored references and supply recipient variables separately; review unclassified literals before sharing. CLI artifact preflight protects source files, and the Stack spec view provides a separate export action. Verbose diagnostics no longer dump resolved configuration. Under Article VIII, this correction must not ship in a patch or minor release; no release version is assigned here.
 - Configured gateway authentication now covers grouped MCP and SSE routes, including initialization, discovery, calls, stream replay, and session deletion. Grouped clients that omitted credentials must send the same bearer token or API-key header required by `/mcp` on every request. Public UI files, probes, terminal CORS preflight, and the exact state-validated downstream OAuth callback remain public; no-auth loopback, valid credential formats, and all supported MCP protocol generations remain unchanged (#1223)
 - Variable names beginning with `GRIDCTL_`, plus `OP_CONNECT_TOKEN` and `OP_SERVICE_ACCOUNT_TOKEN`, are now reserved for gridctl bootstrap and control-plane credentials. New store writes reject them, imports skip them with key-only warnings, exports and variable-set injection omit legacy entries, and local MCP processes no longer inherit them from the gridctl daemon. `${var:...}` and `${vault:...}` references to reserved keys remain literal and return a distinct resolution error without falling back to the ambient environment. Ordinary environment interpolation of non-credential `GRIDCTL_*` values remains supported. This is a compatibility-sensitive security boundary for the next major release; remove legacy entries with `gridctl var delete KEY --force` after moving any downstream credential to a non-reserved name (#1186)
 
 ### Bug Fixes
 
+- The Stack spec view preserves the export API's value-free field path and corrective action on failure instead of showing only a generic HTTP status. Failed exports still produce no download (#1222).
 - The Library no longer claims that intentionally external `scripts/`, `references/`, or `assets/` paths are missing from a complete imported skill package. New imports record that all managed supporting-file trees were evaluated, while legacy and local skills retain the missing-file warning.
 - Container stdio MCP servers no longer report a phantom allocated host port during apply, reload, or autoscaling. Stdio workloads publish no ports, while HTTP/SSE workloads continue to receive sequential published ports among themselves.
 - Documentation now covers scoped variable delivery across the README, architecture map, REST wire shapes, stack schema inventory, and variable examples. The remote-gateway example no longer instructs users to store a reserved `GRIDCTL_*` control-plane key.

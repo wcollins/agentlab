@@ -481,6 +481,32 @@ Some servers reload successfully while others fail. The reload result shows erro
 
 ---
 
+## Stack Export
+
+### Export rejects a sensitive field
+
+**Symptoms:**
+
+```text
+Error: export: gateway.auth.token: recognized sensitive field contains an inline literal; use an authored variable reference
+```
+
+Or an error names a `sensitive default/replacement operand`. The CLI exits `1` without a document; the REST endpoint returns HTTP 500, and the web Export YAML action shows the failure without downloading a file.
+
+**Resolution:**
+
+Store the value separately (for example, `gridctl var set GATEWAY_TOKEN` prompts for hidden input), then edit the reported source field to use `${var:GATEWAY_TOKEN}` without a literal fallback. Recipients must supply their own value. Export never creates a variable or edits the source for you. Environment errors use zero-based indexes into alphabetically sorted keys, such as `mcp-servers[0].env[1]`, rather than printing potentially sensitive names or values.
+
+The rule recognizes sensitive fields and environment-key spellings, not proven secrets; it can reject nonsecret literals under sensitive-looking keys. Unlocking the store does not fix this error, because export never reads variable values. Review unclassified literals and mixed reference/literal strings before sharing, and do not use raw spec/editor content as a sanitized substitute. See [export semantics](cli-reference.md#export-semantics).
+
+### Export refuses an output destination or inherited path
+
+Choose a different `-o` directory if output would overwrite the stack or any parsed ancestor, including a symlink or hard-link alias. Do not redirect stdout onto the source: shell redirection bypasses those destination checks and can truncate it before export starts. If an inherited path cannot retain its anchor, declare that workload in the child stack with an appropriate path instead. Review anchored absolute paths and preserve or adjust child-relative paths before applying the export elsewhere.
+
+If a filesystem write fails, the error lists already-written artifacts and the attempted file that may be incomplete. Check those files before retrying; directory export is not a multi-file transaction.
+
+---
+
 ## Variables (vault)
 
 ### Vault is locked

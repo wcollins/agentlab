@@ -71,7 +71,7 @@ reconciles it once the gateway is healthy (--flash is then ignored).`,
 }
 
 func init() {
-	applyCmd.Flags().BoolVarP(&applyVerbose, "verbose", "v", false, "Print full stack as JSON")
+	applyCmd.Flags().BoolVarP(&applyVerbose, "verbose", "v", false, "Print bounded stack diagnostic summaries")
 	applyCmd.Flags().BoolVarP(&applyQuiet, "quiet", "q", false, "Suppress progress output (show only final result)")
 	applyCmd.Flags().BoolVar(&applyNoCache, "no-cache", false, "Force rebuild of source-based images")
 	applyCmd.Flags().IntVarP(&applyPort, "port", "p", 8180, "Port for MCP gateway")
