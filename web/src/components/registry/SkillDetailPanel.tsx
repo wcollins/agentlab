@@ -363,11 +363,9 @@ export function SkillDetailPanel({
 
 /**
  * Warns that a skill's instructions expect supporting files that are not
- * installed. This is a safety net, not the fix: import copies `scripts/`,
- * `references/`, and `assets/` as of the supporting-file installer, so a skill
- * that trips this was installed before that and needs a re-sync. Without the
- * warning the failure is silent, surfacing only as an agent that follows an
- * instruction to run a file that is not on disk.
+ * installed. Current imports record that they evaluated the complete package,
+ * including intentionally absent directories, so this warning is limited to
+ * local skills and legacy imports that may have omitted supporting files.
  */
 function IncompletePackageNotice({
   skill,
@@ -385,7 +383,10 @@ function IncompletePackageNotice({
   // A skill reporting zero files needs no request to answer "what is
   // installed"; only a skill that has files pays for the lookup.
   const { files } = useSkillFiles(skill.name, skill.fileCount === 0);
-  const missing = missingManagedDirs(body, files);
+  const supportingFilesInstalled = source?.skills.find(
+    (entry) => entry.name === skill.name,
+  )?.supportingFilesInstalled;
+  const missing = missingManagedDirs(body, files, supportingFilesInstalled);
   if (missing.length === 0) return null;
 
   return (
