@@ -1,18 +1,20 @@
 # Remote Gateway Access
 #
 # Enables remote access to Gridctl from MCP clients (e.g., Claude Desktop)
-# running on another machine on the same network.
+# running on another machine through HTTPS or an encrypted tunnel.
 #
 # Gridctl Gateway:
 #   - Listens on loopback by default; this example opts in to all interfaces
 #     via `gateway.bind` below (equivalently: `gridctl apply --bind-all`)
-#   - Exposes SSE endpoint at /sse for MCP clients
+#   - Serves Streamable HTTP at /mcp; /sse is a legacy negotiation hint
 #   - Aggregates tools from connected MCP servers with prefixes
 #
 # SECURITY: widening the bind puts the gateway API — including variable
 # endpoints — on your local network. gridctl refuses to start with a
 # non-loopback bind and no `gateway.auth` configured, so the auth block
-# below is required, not optional. Prefer SSH forwarding
+# below is required, not optional. A token does not encrypt remote HTTP:
+# use a TLS-terminating proxy or an encrypted tunnel, and firewall port 8180
+# so it is reachable only by that proxy or tunnel. Prefer SSH forwarding
 # (`ssh -L 8180:localhost:8180 <host>`) when you only need access from one
 # machine — it needs no widened bind at all.
 #
@@ -20,32 +22,42 @@
 #   1. An MCP server running locally (this example uses itential-dev-stack)
 #      See: https://github.com/itential/itential-dev-stack
 #   2. The MCP server must be accessible at http://localhost:8000/mcp
-#   3. Port 8180 must be accessible from the remote machine (check firewall)
+#   3. An HTTPS reverse proxy forwarding to port 8180, or an encrypted tunnel
+#      For SSH-only access, change gateway.bind below to 127.0.0.1.
+#      If the proxy preserves the public Host header, add that exact hostname
+#      to gateway.allowed_hosts; authentication does not bypass Host checks.
+#   4. Store the gateway token on the server: gridctl var set GATEWAY_TOKEN
 #
 # Usage:
 #   1. Deploy this stack:
 #      gridctl apply examples/gateways/gateway-remote.yaml
 #
-#   2. Find this machine's IP address:
-#      ip addr show | grep "inet " | grep -v 127.0.0.1
-#      # or: hostname -I
+#   2. Configure an HTTPS hostname on your reverse proxy, or open the SSH
+#      tunnel above. Do not expose plain HTTP port 8180 to remote clients.
 #
-#   3. On the remote machine, configure Claude Desktop with:
+#   3. On the remote machine, configure an MCP client with:
 #      {
 #        "mcpServers": {
 #          "gridctl": {
 #            "command": "npx",
-#            "args": ["mcp-remote", "http://<THIS_MACHINE_IP>:8180/sse", "--allow-http", "--transport", "sse-only"]
+#            "args": ["mcp-remote", "https://<GATEWAY_HOST>/mcp", "--header", "Authorization: Bearer ${GATEWAY_TOKEN}"]
 #          }
 #        }
 #      }
+#      Supply GATEWAY_TOKEN securely in the client process environment;
+#      the placeholder is expanded by mcp-remote, not stored as a literal
+#      credential in this file. gridctl does not project credentials into
+#      managed client files. Grouped /groups/<name>/mcp endpoints require
+#      the same header on every request; group and session IDs are not auth.
 #
 #   4. Restart Claude Desktop on the remote machine
 #
 # Testing connectivity:
 #   From remote machine:
-#     curl http://<THIS_MACHINE_IP>:8180/api/status
-#     curl http://<THIS_MACHINE_IP>:8180/api/tools
+#     curl https://gateway.example.com/health
+#     curl -H "Authorization: Bearer ${GATEWAY_TOKEN}" https://gateway.example.com/api/status
+#   Replace gateway.example.com with your proxy's HTTPS hostname.
+#   /health is public; an authenticated /api/status verifies the credential.
 #
 # Claude Desktop config locations:
 #   Linux:   ~/.config/Claude/claude_desktop_config.json
@@ -59,7 +71,7 @@ name: gateway-remote
 
 gateway:
   # Opt in to all interfaces. Without this the gateway binds 127.0.0.1 and
-  # the remote steps above will not reach it.
+  # a proxy on another machine cannot reach it directly. SSH needs only loopback.
   bind: "0.0.0.0"
   # Required whenever bind is not loopback: gridctl refuses to start with a
   # network-reachable listener and no authentication. Store the token in the

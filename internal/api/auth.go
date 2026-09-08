@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/subtle"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -18,8 +19,10 @@ func authMiddleware(authType, token, header string, next http.Handler) http.Hand
 		header = "Authorization"
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for health/ready, CORS preflight, and static web UI files
-		if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.Method == http.MethodOptions || !isProtectedPath(r.URL.Path) {
+		// Check the decoded path and its redirect target. Keep the original
+		// check too: ServeMux treats escaped dot segments as literal segments.
+		// CORS preflight terminates in the outer CORS layer, never here.
+		if !isProtectedPath(r.URL.Path) && !isProtectedPath(path.Clean(r.URL.Path)) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -47,10 +50,12 @@ func authMiddleware(authType, token, header string, next http.Handler) http.Hand
 }
 
 // isProtectedPath returns true for paths that require authentication:
-// API, MCP, SSE, A2A, and well-known endpoints.
+// API, MCP (including groups), SSE, A2A, and well-known endpoints.
 func isProtectedPath(path string) bool {
 	switch {
 	case strings.HasPrefix(path, "/api/"):
+		return true
+	case strings.HasPrefix(path, "/groups/"):
 		return true
 	case path == "/mcp":
 		return true

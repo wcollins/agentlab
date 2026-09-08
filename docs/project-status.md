@@ -19,7 +19,7 @@ Current as of **v0.1.0-rc.3 plus `[Unreleased]`** (see [CHANGELOG.md](../CHANGEL
 | Container orchestration (Docker) | Stable | Backward compatible in 0.x |
 | Generated Python source containers (PyPI, git, local) | Stable | Opt-in through `source.runtime: python` or `source.type: pypi`; existing Dockerfile sources are unchanged |
 | Config schema (servers, resources) | Stable | Backward compatible in 0.x |
-| Auth middleware (bearer, API key) | Stable | Backward compatible in 0.x |
+| Auth middleware (bearer, API key) | Stable | Credential formats unchanged; grouped MCP/SSE now require configured auth on every request (see [migration guidance](troubleshooting.md#grouped-mcp-requests-return-401)) |
 | Hot reload | Stable | Backward compatible in 0.x |
 | Vault secrets | Stable | Backward compatible in 0.x |
 | Web UI | Stable | No API guarantee (internal) |
@@ -59,7 +59,7 @@ Current as of **v0.1.0-rc.3 plus `[Unreleased]`** (see [CHANGELOG.md](../CHANGEL
 | Downstream OAuth brokering (auth) | Stable | Backward compatible in 0.x |
 | TOFU schema pinning (pins) | Stable | Backward compatible in 0.x |
 | Tool-poisoning scan | Stable | Backward compatible in 0.x |
-| Tool groups | Stable | Backward compatible in 0.x |
+| Tool groups | Stable | YAML unchanged; clients must send configured gateway credentials on grouped endpoints |
 | Per-client access scoping | Stable | Backward compatible in 0.x |
 | Rate limits | Stable | Backward compatible in 0.x |
 | Dollar-cost layer (pricing, model attribution, budgets) | Removed in v0.1.x | The gateway cannot observe actual spend; token metrics remain (see [Usage Observability](usage-observability.md)) |

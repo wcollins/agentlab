@@ -79,7 +79,7 @@ gateway:
 | `bind` | string | No | `127.0.0.1` | Address the HTTP listener binds. Loopback by default, so the API, web UI, and gateway are unreachable from other hosts and from containers. Set `0.0.0.0` to listen on every interface. The `--bind` and `--bind-all` flags override this. **A non-loopback bind requires `auth`** — gridctl refuses to start otherwise |
 | `insecure_allow_unauthenticated` | bool | No | `false` | Permit a non-loopback bind with no `auth` configured. Without it gridctl refuses to start in that combination. Exists as a config field as well as the `--insecure-allow-unauthenticated` flag, because a flag can be dropped by whatever wraps the process (launchd, a Homebrew service, a Dockerfile `CMD`). Warns loudly on every start |
 | `allowed_origins` | []string | No | `["*"]` | CORS allowed origins. Empty or unset allows all |
-| `allowed_hosts` | []string | No | `[]` | Extra `Host` header values accepted on the MCP endpoint (DNS rebinding protection). Loopback hosts are always accepted, so unset means loopback-only. Set only when a reverse proxy or container hostname fronts the gateway. Unlike `allowed_origins`, `"*"` is **not** a wildcard here and matches nothing |
+| `allowed_hosts` | []string | No | `[]` | Extra `Host` header values accepted for loopback-arriving connections across the HTTP surface, including MCP, REST, the UI, and the OAuth callback (DNS rebinding protection). Probes and terminal CORS preflight are exempt. Unset accepts only loopback hosts on those connections; non-loopback-arriving connections skip this check. Set when a reverse proxy forwards a non-loopback hostname. Unlike `allowed_origins`, `"*"` is **not** a wildcard here and matches nothing |
 | `auth` | object | No | - | Authentication configuration |
 | `code_mode` | string | No | `"off"` | Enable code mode: `"on"` or `"off"` |
 | `code_mode_timeout` | int | No | `30` | Code mode execution timeout in seconds. Must be >= 0 |
@@ -93,7 +93,13 @@ gateway:
 
 ### Auth
 
-When configured, all requests (except `/health` and `/ready`) require a valid token.
+When configured, authentication covers `/mcp`, `/sse`, `/message`, `/groups/{name}/mcp`, `/groups/{name}/sse`, and the `/api/` namespace. The `/groups/`, `/a2a/`, and `/.well-known/` namespaces are classified as protected, including unknown paths. Missing or incorrect credentials receive HTTP 401 before operational handling, including initialization, discovery, tool calls, stream establishment or replay, and session deletion.
+
+The UI shell, assets, and UI deep links remain public so the browser can load. `/health` and `/ready` do not require the gateway token (readiness can still return 503). CORS preflight terminates without dispatching an operation. When downstream OAuth brokering is enabled, the exact `GET /oauth/callback` route uses single-use OAuth state instead of the gateway token; this does not exempt `/api/auth/` or `/api/servers/{name}/auth/`. Host checks and the MCP transport's Origin checks remain independent of authentication; native clients do not need an Origin header.
+
+Send `Authorization: Bearer <token>` for bearer auth, or the raw token in the configured header for API-key auth. Group names, client selectors, `Mcp-Session-Id`, and `Last-Event-ID` are not credentials or credential-bound identities. Shared-token mode does not implement the full MCP OAuth authorization profile.
+
+Remote access requires HTTPS through a TLS-terminating reverse proxy or an encrypted tunnel. A shared token sent over unencrypted remote HTTP can be intercepted; authentication alone does not encrypt traffic. Keep the backend listener private to the proxy or tunnel. Loopback without configured auth remains supported, and a non-loopback listener still requires auth unless the explicit insecure override is set.
 
 ```yaml
 gateway:
@@ -1099,6 +1105,8 @@ per-server `tools:` whitelist narrows what exists, groups curate what an
 endpoint shows, client scoping restricts what a client may touch, and all
 three intersect. Omitting the block changes nothing; the default `/mcp`
 endpoint always serves the full surface.
+
+With `gateway.auth` configured, `/groups/{name}/mcp` and the legacy negotiation hint at `/groups/{name}/sse` require the same credential as `/mcp` on every request. Authentication precedes the group lookup: missing or incorrect credentials return HTTP 401 even for unknown groups; authenticated requests to unknown groups return 404. Group selection is not credential-bound authorization. See [Auth](#auth).
 
 ```yaml
 groups:
