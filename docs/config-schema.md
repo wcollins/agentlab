@@ -93,7 +93,13 @@ gateway:
 
 ### Auth
 
-When configured, all requests (except `/health` and `/ready`) require a valid token.
+When configured, authentication covers `/mcp`, `/sse`, `/message`, `/groups/{name}/mcp`, `/groups/{name}/sse`, and the `/api/` namespace. The `/groups/`, `/a2a/`, and `/.well-known/` namespaces are classified as protected, including unknown paths. Missing or incorrect credentials receive HTTP 401 before operational handling, including initialization, discovery, tool calls, stream establishment or replay, and session deletion.
+
+The UI shell, assets, and UI deep links remain public so the browser can load. `/health` and `/ready` do not require the gateway token (readiness can still return 503). CORS preflight terminates without dispatching an operation. When downstream OAuth brokering is enabled, the exact `GET /oauth/callback` route uses single-use OAuth state instead of the gateway token; this does not exempt `/api/auth/` or `/api/servers/{name}/auth/`. Host checks and the MCP transport's Origin checks remain independent of authentication; native clients do not need an Origin header.
+
+Send `Authorization: Bearer <token>` for bearer auth, or the raw token in the configured header for API-key auth. Group names, client selectors, `Mcp-Session-Id`, and `Last-Event-ID` are not credentials or credential-bound identities. Shared-token mode does not implement the full MCP OAuth authorization profile.
+
+Remote access requires HTTPS through a TLS-terminating reverse proxy or an encrypted tunnel. A shared token sent over unencrypted remote HTTP can be intercepted; authentication alone does not encrypt traffic. Keep the backend listener private to the proxy or tunnel. Loopback without configured auth remains supported, and a non-loopback listener still requires auth unless the explicit insecure override is set.
 
 ```yaml
 gateway:

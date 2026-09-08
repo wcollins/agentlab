@@ -652,6 +652,14 @@ Browser shows a blank page or connection refused when accessing the gateway URL.
 
 3. The web UI requires a modern browser - Chrome, Firefox, Safari, or Edge.
 
+### Grouped MCP requests return 401
+
+With `gateway.auth` configured, grouped endpoints now require the same credential as `/mcp` and `/api/`. Clients that previously reached `/groups/{name}/mcp` or `/groups/{name}/sse` without a credential must attach it to every request, including SSE negotiation, stream reconnection, and DELETE. Use `Authorization: Bearer <token>` for `type: bearer`, or the raw token in the configured header for `type: api_key` (default: `Authorization`). A session ID or replay ID does not replace the credential.
+
+The UI shell and assets, `/health`, `/ready`, terminal CORS preflight, and the exact state-validated downstream OAuth callback remain accessible without the gateway token. A working health probe therefore does not prove that an MCP client's authentication is configured correctly. A valid token also does not override Host or MCP Origin rejection (HTTP 403); native clients may omit Origin.
+
+Use HTTPS or an encrypted tunnel for remote connections. Do not troubleshoot by sending the credential over plain remote HTTP, disabling auth, or widening CORS. See [gateway authentication](config-schema.md#auth) for the route boundary and [the remote gateway example](../examples/gateways/gateway-remote.yaml) for transport guidance.
+
 ### Authentication prompt loop
 
 **Symptoms:**
