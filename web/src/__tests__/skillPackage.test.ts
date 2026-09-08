@@ -111,6 +111,10 @@ describe('missingManagedDirs', () => {
   it('reports nothing while the body is unknown', () => {
     expect(missingManagedDirs(null, [])).toEqual([]);
   });
+
+  it('reports nothing when a remote import evaluated all supporting directories', () => {
+    expect(missingManagedDirs('Read assets/config.yml in the target project.', [], true)).toEqual([]);
+  });
 });
 
 describe('formatManagedDirs', () => {
