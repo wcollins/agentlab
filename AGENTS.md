@@ -17,7 +17,7 @@ Task (https://taskfile.dev) is the entry point for everything; tasks live in `Ta
 | `task build:web` | Frontend only (`cd web && npm run build`). |
 | `task dev` | Runs the Vite dev server (`web/`) against a separately-running backend. |
 | `task test` | `go test -race ./...` (unit tests only, same race detector CI runs). |
-| `task test:integration` | `go test -tags=integration -race -timeout 15m ./tests/integration/...`. Requires Docker (or Podman). These tests hit real container runtimes per Article IV of `CONSTITUTION.md`; mocks are disallowed in `tests/integration/`. |
+| `task test:integration` | `go test -tags=integration -race -timeout 15m ./tests/integration/...`. The full suite requires Docker (or Podman); selected HTTP/subprocess suites need no container runtime. All use real dependencies per Article IV of `CONSTITUTION.md`; mocks are disallowed in `tests/integration/`. |
 | `task test:frontend` | `cd web && npm test` (Vitest). |
 | `task lint` | `golangci-lint run` plus `npm run lint` in `web/` (both CI-gated). |
 | `task generate` | Regenerates `go.uber.org/mock` mocks under `pkg/mcp/` and `pkg/runtime/`. Required after touching the interfaces they're generated from. |
@@ -31,7 +31,7 @@ Run a single Go test:
 
 ```bash
 go test -v -run TestFunctionName ./pkg/runtime/...
-go test -v -race -tags=integration -run TestGatewayLifecycle ./tests/integration/...
+go test -v -race -tags=integration -run TestToolGroups_Authentication ./tests/integration/...
 ```
 
 Lint:
@@ -51,6 +51,9 @@ cmd/gridctl/        Cobra CLI entry points, one file per subcommand (apply, serv
 internal/api/       REST handlers backing the web UI (one file per resource: stack, skills, vault, pins, telemetry, traces, …).
                     Python source validation, resolution previews, generated files, and status provenance live in
                     python_sources.go. The Server struct in api.go wires together every pkg/* subsystem the UI needs.
+                    Server.Handler assembles HTTP routes and CORS/Host/auth middleware; auth.go protects operational
+                    namespaces, including grouped MCP/SSE. UI files, probes, terminal preflight, and the exact
+                    state-validated downstream OAuth callback do not require the gateway token.
 internal/probe/     Ephemeral MCP tool-list probe for the "add server" wizard (not registered with the gateway).
 pkg/catalog/        MCP server catalog behind `gridctl search` / `gridctl add`: curated embedded entries plus the
                     official MCP Registry, with install-shape mapping into stack.yaml server blocks.
@@ -104,7 +107,7 @@ web/                React 19 + Vite + TypeScript. Tailwind v4 (postcss plugin). 
 
 tests/integration/  Real-runtime suites (build tag `integration`). Cover gateway lifecycle, hot reload, autoscaler,
                     replicas, transports (incl. Podman), private git auth, generated Python source builds, and
-                    optimize heuristics.
+                    optimize heuristics. Grouped auth tests use real HTTP and a subprocess MCP backend.
 examples/           Example stack YAMLs grouped by surface (getting-started, transports, openapi, registry, secrets-vault,
                     code-mode, platforms, tracing, access-control, autoscale, declarative-link, gateways, portable-stack,
                     portable-pack, model-policy, python-sources). examples/_mock-servers/ is the source for `task mock:servers`.
@@ -112,7 +115,7 @@ docs/               User-facing documentation (cli-reference, config-schema, api
                     global-context, model-policy, scaling, usage-observability, installation, project-status, troubleshooting).
 ```
 
-End-to-end request flow for an upstream MCP tool call: client → HTTP listener built by `pkg/controller` (gateway_builder.go) → `pkg/mcp` transport (SSE/streamable/stdio) → `mcp.Gateway` router → per-server `mcp.Client` (process/SSE/HTTP/OpenAPI) → response, with telemetry, tracing, schema pinning, and (optional) output-format conversion attached on the way back.
+End-to-end request flow for an upstream HTTP MCP tool call: client → HTTP listener built by `pkg/controller` (gateway_builder.go) → `internal/api.Server.Handler` (CORS, Host validation, configured auth, and route/group selection) → `pkg/mcp` Streamable HTTP transport (Host/Origin checks and protocol handling) → `mcp.Gateway` router → per-server `mcp.Client` (process/stdio/SSE/HTTP/OpenAPI) → response, with telemetry, tracing, schema pinning, and (optional) output-format conversion attached on the way back. Legacy SSE routes return a negotiation hint rather than dispatching tools.
 
 End-to-end for the web UI: React store action → `/api/...` handler in `internal/api/` → method on `Server` → call into the relevant `pkg/*` subsystem → JSON response → store update → component re-render.
 
@@ -121,7 +124,7 @@ End-to-end for the web UI: React store action → `/api/...` handler in `interna
 `CONSTITUTION.md` is binding for every change. Articles that most often catch a refactor by surprise:
 
 - **III (Test-first):** every exported function gets a test before merge; bug fixes need a regression test.
-- **IV (Integration tests use real dependencies):** anything under `tests/integration/` runs against real Docker/Podman and must pass `-race`. Mocks are unit-test only.
+- **IV (Integration tests use real dependencies):** anything under `tests/integration/` uses real dependencies (containers, network connections, or subprocesses as applicable) and must pass `-race`. Mocks are unit-test only.
 - **V (No panics in `pkg/` or `internal/`):** return errors. CLI init in `cmd/` is the only place panic is allowed.
 - **VI (Context propagation):** any I/O, blocking, or external call takes `context.Context` as the first arg and respects cancellation.
 - **IX (Stack YAML back-compat):** new `stack.yaml` fields are optional with a default that preserves existing behavior. Renames and removals are breaking changes.

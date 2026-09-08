@@ -6,6 +6,7 @@ All notable changes to gridctl will be documented in this file.
 
 ### Documentation
 
+- Correct the API reference's grouped-auth exemptions and remote gateway setup guidance, and clarify credential requirements in group and client-linking documentation (#1223).
 - Python source examples now include a practical daily stack that builds the Fetch server from an exact PyPI release and the Time server from a commit-pinned project in the official MCP servers monorepo. The guide explains source pins, generated command selection, and build and runtime network behavior.
 
 ### Security

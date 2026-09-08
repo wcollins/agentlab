@@ -39,37 +39,46 @@ gridctl apply examples/gateways/gateway-basic.yaml
 
 ## 🖥️ gateway-remote.yaml
 
-Exposes Gridctl's gateway on all interfaces for remote MCP clients.
+Exposes Gridctl's gateway on all interfaces for remote MCP clients through HTTPS or an encrypted tunnel. Authentication does not encrypt traffic: do not expose plain HTTP port 8180 to remote clients.
 
 ### Prerequisites
 
 1. An MCP server running (e.g., Qdrant MCP, Itential dev-stack)
-2. Port 8180 accessible from the remote machine (check firewall)
+2. A gateway token stored on the server with `gridctl var set GATEWAY_TOKEN`
+3. A TLS-terminating reverse proxy forwarding to port 8180, with the backend firewalled so only the proxy can reach it, or an SSH tunnel
+
+If the proxy forwards the public hostname in the `Host` header, add that exact hostname to `gateway.allowed_hosts`. Loopback hosts are accepted by default; valid credentials do not bypass Host validation. See [gateway configuration](../../docs/config-schema.md#gateway).
 
 ### Usage
 
 ```bash
 # Deploy on the server
 gridctl apply examples/gateways/gateway-remote.yaml
-
-# Find server IP
-ip addr show | grep "inet " | grep -v 127.0.0.1
 ```
+
+For SSH-only access, change `gateway.bind` in the example to `127.0.0.1` before applying it, and run `ssh -N -L 8180:localhost:8180 <host>` on the client machine. Connect the client to `http://localhost:8180/mcp` through that tunnel, retaining the configured authentication.
 
 ### Client Configuration
 
-On the remote machine, configure Claude Desktop:
+Configure your MCP client's Streamable HTTP connection using the following values (replace `gateway.example.com` with your proxy's HTTPS hostname):
 
-```json
-{
-  "mcpServers": {
-    "gridctl": {
-      "command": "npx",
-      "args": ["mcp-remote", "http://<SERVER_IP>:8180/sse", "--allow-http", "--transport", "sse-only"]
-    }
-  }
-}
+| Setting | Value |
+|---------|-------|
+| Endpoint | `https://gateway.example.com/mcp` |
+| Header | `Authorization: Bearer <token>` |
+
+Supply the token through the client's secure credential or environment settings, not a literal value in version-controlled configuration. The YAML example includes an `mcp-remote` bridge configuration for clients that require stdio. `/sse` only returns a legacy negotiation hint; it is not a persistent MCP transport.
+
+Grouped endpoints at `/groups/{name}/mcp` require the same header on every request, including stream reconnection and session deletion. Neither a group name nor a session ID authenticates the caller. `gridctl link --group` selects an endpoint but does not provision credentials into managed client files.
+
+Check the public probe and authenticated API separately, with `GATEWAY_TOKEN` supplied securely in the local shell environment:
+
+```bash
+curl https://gateway.example.com/health
+curl -H "Authorization: Bearer ${GATEWAY_TOKEN}" https://gateway.example.com/api/status
 ```
+
+The probe does not verify credentials. With auth configured, a missing or incorrect token on `/api/status` or a grouped endpoint returns HTTP 401. Native MCP clients may omit Origin; valid credentials do not bypass MCP Origin checks.
 
 ### 📂 Config File Locations
 

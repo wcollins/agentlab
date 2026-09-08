@@ -24,6 +24,9 @@
 #   2. The MCP server must be accessible at http://localhost:8000/mcp
 #   3. An HTTPS reverse proxy forwarding to port 8180, or an encrypted tunnel
 #      For SSH-only access, change gateway.bind below to 127.0.0.1.
+#      If the proxy preserves the public Host header, add that exact hostname
+#      to gateway.allowed_hosts; authentication does not bypass Host checks.
+#   4. Store the gateway token on the server: gridctl var set GATEWAY_TOKEN
 #
 # Usage:
 #   1. Deploy this stack:
@@ -51,8 +54,9 @@
 #
 # Testing connectivity:
 #   From remote machine:
-#     curl https://<GATEWAY_HOST>/health
-#     curl -H "Authorization: Bearer ${GATEWAY_TOKEN}" https://<GATEWAY_HOST>/api/status
+#     curl https://gateway.example.com/health
+#     curl -H "Authorization: Bearer ${GATEWAY_TOKEN}" https://gateway.example.com/api/status
+#   Replace gateway.example.com with your proxy's HTTPS hostname.
 #   /health is public; an authenticated /api/status verifies the credential.
 #
 # Claude Desktop config locations:
@@ -67,7 +71,7 @@ name: gateway-remote
 
 gateway:
   # Opt in to all interfaces. Without this the gateway binds 127.0.0.1 and
-  # the remote steps above will not reach it.
+  # a proxy on another machine cannot reach it directly. SSH needs only loopback.
   bind: "0.0.0.0"
   # Required whenever bind is not loopback: gridctl refuses to start with a
   # network-reachable listener and no authentication. Store the token in the

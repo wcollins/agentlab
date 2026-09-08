@@ -4,19 +4,23 @@ The gridctl gateway exposes a REST API for managing stacks, secrets, skills, pac
 
 ## Authentication
 
-When `gateway.auth` is configured, authentication is required for `/api/*`, `/mcp`, `/sse`, `/message`, and `/.well-known/*` paths. Exempt: `/health`, `/ready`, CORS preflight (`OPTIONS`) requests, the static web UI (`GET /`), `/oauth/callback`, and the group MCP endpoints (`/groups/{name}/mcp`, `/groups/{name}/sse`).
+When `gateway.auth` is configured, authentication is required for `/api/`, `/groups/`, `/a2a/`, and `/.well-known/` namespaces, plus `/mcp`, `/sse`, and `/message`. This includes `/groups/{name}/mcp` and `/groups/{name}/sse`, as well as unknown paths within protected namespaces. Missing or incorrect credentials return HTTP `401` with a plain-text `Unauthorized` body before operational handling.
+
+The UI shell, assets, and deep links, `/health`, and `/ready` do not require the gateway token. `OPTIONS` terminates in the CORS layer without dispatching an operation. When downstream OAuth brokering is enabled, the exact `GET /oauth/callback` route validates single-use OAuth state instead of the gateway token; `/api/auth/` and `/api/servers/{name}/auth/` remain protected. Host checks and MCP Origin checks apply independently of authentication; native clients may omit Origin.
+
+Send the credential on every operational request, including initialization, discovery, stream reconnection or replay, and session deletion. Group names, client selectors, `Mcp-Session-Id`, and `Last-Event-ID` do not authenticate callers. Shared-token mode does not implement the full MCP OAuth authorization profile. Use HTTPS or an encrypted tunnel for remote access; see [gateway authentication](config-schema.md#auth) for configuration and transport requirements. Without configured auth, loopback use remains unchanged.
 
 **Bearer token:**
 ```bash
-curl -H "Authorization: Bearer <token>" http://localhost:8180/api/status
+curl -H "Authorization: Bearer ${GATEWAY_TOKEN}" http://localhost:8180/api/status
 ```
 
-**API key:**
+**API key** (with `gateway.auth.type: api_key` and `gateway.auth.header: X-API-Key`):
 ```bash
-curl -H "X-API-Key: <token>" http://localhost:8180/api/status
+curl -H "X-API-Key: ${GATEWAY_TOKEN}" http://localhost:8180/api/status
 ```
 
-Token comparison uses constant-time equality to prevent timing attacks.
+Supply `GATEWAY_TOKEN` in the shell environment. API-key mode sends the raw token, without a `Bearer ` prefix; its default header is `Authorization` when no custom header is set. Token comparison uses constant-time equality to prevent timing attacks. Throughout this reference, **Auth: Yes** means required when `gateway.auth` is configured.
 
 ---
 
@@ -664,7 +668,7 @@ curl -H "Authorization: Bearer $TOKEN" "http://localhost:8180/api/optimize?min_i
 
 #### `GET /api/groups`
 
-Returns every tool group declared under `groups:` in stack.yaml, resolved against the live tool surface. Backs `gridctl groups`. Always `200`: with no groups configured the payload carries `configured: false` and an empty array. Each group also serves MCP at `GET|POST|DELETE /groups/{name}/mcp` (and a negotiation hint at `GET /groups/{name}/sse`); unknown group names return `404` before any session is created.
+Returns every tool group declared under `groups:` in stack.yaml, resolved against the live tool surface. Backs `gridctl groups`. An authenticated request returns `200`: with no groups configured the payload carries `configured: false` and an empty array. Each group also serves MCP at `GET|POST|DELETE /groups/{name}/mcp` (and a negotiation hint at `GET /groups/{name}/sse`). These routes require the same configured credential as `/mcp` on every request. After authentication, unknown group names return `404` before any session is created.
 
 **Auth:** Yes
 
@@ -3389,19 +3393,21 @@ session-based SSE message endpoint was retired with the legacy transport.
 
 #### `GET /`
 
-Serves the embedded web UI. All unmatched paths fall back to `index.html` for SPA routing. Static assets are served with appropriate content types.
+Serves the embedded web UI. Unmatched paths fall back to `index.html` for SPA routing, but paths within protected namespaces still pass through authentication first. Static assets are served with appropriate content types.
 
-**Auth:** Yes
+**Auth:** No (UI shell, assets, and deep links outside protected namespaces)
 
 ---
 
 ## Error Responses
 
-All API errors return JSON:
+REST handlers generally return errors as JSON:
 
 ```json
 {"error": "error message"}
 ```
+
+HTTP middleware and routing errors can be plain text, including `401 Unauthorized` from gateway authentication and `403 Forbidden` from Host or MCP Origin checks.
 
 **Status codes:**
 
@@ -3412,6 +3418,7 @@ All API errors return JSON:
 | `204` | Success, no content |
 | `400` | Invalid input or request |
 | `401` | Missing or invalid authentication |
+| `403` | Host, MCP Origin, or endpoint-specific access check rejected the request |
 | `404` | Resource not found |
 | `405` | HTTP method not allowed |
 | `409` | Resource conflict (e.g., duplicate name) |
@@ -3429,4 +3436,4 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 Vary: Origin
 ```
 
-`OPTIONS` preflight requests return `200 OK` with CORS headers without authentication.
+`OPTIONS` requests return `200 OK` without authentication and never dispatch an operation. CORS response headers are present only when the request supplies an allowed Origin; a custom `gateway.auth.header` is also included in `Access-Control-Allow-Headers`. Preflight success does not authenticate the subsequent request.

@@ -57,6 +57,8 @@ Treat these as claims, not guarantees: they are reported by the server and not v
 
 Where they overlap: whitelists (this workspace) decide what the gateway exposes at all; Access decides which client sees which servers and tools; Groups publish named subsets at separate endpoints. A tool must survive all applicable layers for a client to call it.
 
+These filters are separate from [gateway authentication](config-schema.md#auth). When configured, the gateway credential is required on every grouped MCP request, just as on `/mcp`. Client selectors are self-declared, and group names are not authenticated identities; the filters are guardrails for cooperating clients.
+
 ## Related
 
 - [Configuration Reference](config-schema.md) - `tools:`, `clients:`, and `groups:` blocks

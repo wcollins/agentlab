@@ -79,7 +79,7 @@ gateway:
 | `bind` | string | No | `127.0.0.1` | Address the HTTP listener binds. Loopback by default, so the API, web UI, and gateway are unreachable from other hosts and from containers. Set `0.0.0.0` to listen on every interface. The `--bind` and `--bind-all` flags override this. **A non-loopback bind requires `auth`** — gridctl refuses to start otherwise |
 | `insecure_allow_unauthenticated` | bool | No | `false` | Permit a non-loopback bind with no `auth` configured. Without it gridctl refuses to start in that combination. Exists as a config field as well as the `--insecure-allow-unauthenticated` flag, because a flag can be dropped by whatever wraps the process (launchd, a Homebrew service, a Dockerfile `CMD`). Warns loudly on every start |
 | `allowed_origins` | []string | No | `["*"]` | CORS allowed origins. Empty or unset allows all |
-| `allowed_hosts` | []string | No | `[]` | Extra `Host` header values accepted on the MCP endpoint (DNS rebinding protection). Loopback hosts are always accepted, so unset means loopback-only. Set only when a reverse proxy or container hostname fronts the gateway. Unlike `allowed_origins`, `"*"` is **not** a wildcard here and matches nothing |
+| `allowed_hosts` | []string | No | `[]` | Extra `Host` header values accepted for loopback-arriving connections across the HTTP surface, including MCP, REST, the UI, and the OAuth callback (DNS rebinding protection). Probes and terminal CORS preflight are exempt. Unset accepts only loopback hosts on those connections; non-loopback-arriving connections skip this check. Set when a reverse proxy forwards a non-loopback hostname. Unlike `allowed_origins`, `"*"` is **not** a wildcard here and matches nothing |
 | `auth` | object | No | - | Authentication configuration |
 | `code_mode` | string | No | `"off"` | Enable code mode: `"on"` or `"off"` |
 | `code_mode_timeout` | int | No | `30` | Code mode execution timeout in seconds. Must be >= 0 |
@@ -1105,6 +1105,8 @@ per-server `tools:` whitelist narrows what exists, groups curate what an
 endpoint shows, client scoping restricts what a client may touch, and all
 three intersect. Omitting the block changes nothing; the default `/mcp`
 endpoint always serves the full surface.
+
+With `gateway.auth` configured, `/groups/{name}/mcp` and the legacy negotiation hint at `/groups/{name}/sse` require the same credential as `/mcp` on every request. Authentication precedes the group lookup: missing or incorrect credentials return HTTP 401 even for unknown groups; authenticated requests to unknown groups return 404. Group selection is not credential-bound authorization. See [Auth](#auth).
 
 ```yaml
 groups:

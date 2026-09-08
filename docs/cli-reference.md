@@ -120,6 +120,8 @@ Install MCP servers by name instead of hand-writing `command`/`args`/`env`. The 
 
 Named cross-server tool bundles declared under `groups:` in stack.yaml (see the [config schema](config-schema.md#groups-tool-bundles)), each served at `/groups/{name}/mcp`. Exit codes: `0` success (including no groups configured), `2` infrastructure error.
 
+When `gateway.auth` is configured, grouped MCP clients must send the same credential as `/mcp` on every request. `gridctl link --group` selects the endpoint but does not provision credentials into client files; configure authentication in the client separately. Local CLI API requests continue to use the credential recorded in daemon state. See [gateway authentication](config-schema.md#auth).
+
 | Command | Purpose |
 |---|---|
 | `gridctl groups` | Table of groups with member counts (resolved against the live tool surface), override counts, and endpoints. `-s` / `--stack <name>` picks the stack (auto-detected when only one is running). Prints a sample `groups:` block when none is configured. |
