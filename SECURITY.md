@@ -29,8 +29,8 @@ The issue template system is for bugs and feature requests only - it is not appr
 When a vulnerability is confirmed:
 
 1. A fix is prepared on a private branch
-2. The fix is released as a patch version
-3. A GitHub Security Advisory is published after the patch is available
+2. The fix is released under [Article VIII's versioning rules](CONSTITUTION.md#article-viii---semantic-versioning): compatible fixes may ship in a patch; breaking fixes, including changed stack export output and inline-credential rejection, require a major release
+3. A GitHub Security Advisory is published after the release is available
 
 Coordinated disclosure is preferred. Reporters are credited in the advisory unless they request anonymity.
 

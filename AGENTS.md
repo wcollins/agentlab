@@ -58,6 +58,8 @@ internal/probe/     Ephemeral MCP tool-list probe for the "add server" wizard (n
 pkg/catalog/        MCP server catalog behind `gridctl search` / `gridctl add`: curated embedded entries plus the
                     official MCP Registry, with install-shape mapping into stack.yaml server blocks.
 pkg/config/         stack.yaml schema, defaults and validation, variable/env expansion, plan diffing, health-check parsing.
+                    export.go owns the shared non-resolving ExportStack projection for CLI/API exports, with bounded
+                    sensitive-literal rejection and source ancestry for CLI destination checks. Runtime loaders stay separate.
 pkg/runtime/        Container orchestration. Orchestrator is the WorkloadRuntime + Builder front; it prepares one desired
                     source image per logical MCP server before reconciling replicas. pkg/runtime/docker is the Docker
                     implementation. Runtime auto-detected (docker → podman) unless --runtime is set.
@@ -82,7 +84,7 @@ pkg/contexts/       Global agent-context projection (`gridctl ctx`): one canonic
 pkg/modelsync/      Model routing policy projection (`gridctl models`): a router-only LiteLLM fragment plus its include:
                     line in the parent config, and an OpenCode provider stanza, with drift and restart-pending state.
 pkg/wiring/         Key-level ownership of gateway entries merged into client MCP configs (`gridctl project`, link/unlink).
-pkg/pack/           gridctl-pack.yaml manifest schema; orchestration lives in cmd/gridctl/pack.go (`gridctl pack`).
+pkg/pack/           gridctl-pack.yaml manifest schema; pkg/packops owns orchestration shared by the CLI and REST handlers.
 pkg/skillpins/      TOFU pins over skill documents (per-file digests, findings); the `gridctl skill pins` store.
 pkg/limits/         Enforces the `limits:` block: token-bucket rate limits on the tool-call dispatch path.
 pkg/provisioner/    LLM-client config writers (claude, claudecode, cursor, windsurf, gemini, antigravity, opencode, grok, goose,
@@ -117,7 +119,7 @@ docs/               User-facing documentation (cli-reference, config-schema, api
 
 End-to-end request flow for an upstream HTTP MCP tool call: client → HTTP listener built by `pkg/controller` (gateway_builder.go) → `internal/api.Server.Handler` (CORS, Host validation, configured auth, and route/group selection) → `pkg/mcp` Streamable HTTP transport (Host/Origin checks and protocol handling) → `mcp.Gateway` router → per-server `mcp.Client` (process/stdio/SSE/HTTP/OpenAPI) → response, with telemetry, tracing, schema pinning, and (optional) output-format conversion attached on the way back. Legacy SSE routes return a negotiation hint rather than dispatching tools.
 
-End-to-end for the web UI: React store action → `/api/...` handler in `internal/api/` → method on `Server` → call into the relevant `pkg/*` subsystem → JSON response → store update → component re-render.
+End-to-end for the web UI: component or React store action → `/api/...` handler in `internal/api/` → method on `Server` → call into the relevant `pkg/*` subsystem → JSON response → component or store state update → component re-render. The Stack spec view's Export YAML action calls `/api/stack/export` and downloads the non-resolving projection; raw spec retrieval and editing remain separate and may contain authored credentials. Verbose apply uses bounded controller diagnostic summaries, not resolved stack JSON.
 
 ## Constitution
 
@@ -127,8 +129,9 @@ End-to-end for the web UI: React store action → `/api/...` handler in `interna
 - **IV (Integration tests use real dependencies):** anything under `tests/integration/` uses real dependencies (containers, network connections, or subprocesses as applicable) and must pass `-race`. Mocks are unit-test only.
 - **V (No panics in `pkg/` or `internal/`):** return errors. CLI init in `cmd/` is the only place panic is allowed.
 - **VI (Context propagation):** any I/O, blocking, or external call takes `context.Context` as the first arg and respects cancellation.
+- **VIII (Semantic versioning):** changed export output and newly rejected configurations are breaking changes; they require a major release and a changelog announcement, not a patch or minor release.
 - **IX (Stack YAML back-compat):** new `stack.yaml` fields are optional with a default that preserves existing behavior. Renames and removals are breaking changes.
-- **X (Machine-readable CLI output):** structured commands need a `--format json` (or equivalent) and meaningful exit codes (`0`/`1`/`2`).
+- **X (Machine-readable CLI output):** structured commands need machine-readable output (`--format json` or equivalent) and meaningful exit codes: `0` for success, nonzero for failure. Check each command's contract; export uses `0`/`1`, while several command families distinguish `0`/`1`/`2`.
 - **XIV (Structured logging):** use `log/slog` in library code; no `fmt.Println` / `log.Printf`.
 - **XV (Changelog discipline):** every user-visible change lands an entry under `[Unreleased]` in `CHANGELOG.md` in the same PR.
 

@@ -65,3 +65,19 @@ gridctl apply examples/transports/ssh-mcp.yaml
 gridctl apply examples/transports/external-mcp.yaml
 gridctl apply examples/transports/external-auth.yaml
 ```
+
+## Export a Running Stack
+
+After building the mock server as described above, run these commands from the repository root with no other gridctl deployment running:
+
+```bash
+gridctl apply examples/transports/local-mcp.yaml
+gridctl export
+gridctl export --format json
+gridctl export -o ./exported-stack
+gridctl destroy examples/transports/local-mcp.yaml
+```
+
+The first two exports print one document to stdout with a review notice on stderr. The directory export writes `exported-stack/stack.yaml` and, if imported sources exist in the local skills lockfile, `skills.yaml`. It does not copy the mock executable. This example's stack-relative command remains `../_mock-servers/local-stdio-server/mock-stdio-server`; adjust it to the recipient's layout before applying the exported file.
+
+References such as `${API_KEY}` or `${var:KEY}` stay unresolved. Recognized inline credentials and nonempty sensitive fallback/replacement operands block export rather than becoming invented placeholders. Review other authored literals before sharing. The web Stack spec view's Export YAML action uses the same policy, while raw spec content is unchanged. See [export semantics](../../docs/cli-reference.md#export-semantics).

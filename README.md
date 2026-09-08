@@ -200,8 +200,10 @@ gridctl add github             # Append a catalog server to stack.yaml by name
 gridctl validate stack.yaml    # Lint and schema-check the spec (exit 0/1/2)
 gridctl plan stack.yaml        # Diff against running state
 gridctl apply stack.yaml       # Apply the spec
-gridctl export                 # Reverse-engineer stack.yaml from a running stack
+gridctl export                 # Export authored config with references preserved
 ```
+
+Export rereads the running deployment's stack file without resolving variables. Recognized inline credentials block export; replace them with authored references and supply values separately on the recipient's host. Review other authored literals before sharing. The Stack spec view's Export YAML action applies the same policy; raw spec content may still contain credentials. See [export semantics and migration guidance](docs/cli-reference.md#export-semantics).
 
 Learn more → [Configuration Reference](docs/config-schema.md)
 
