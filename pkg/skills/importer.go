@@ -400,15 +400,16 @@ func (imp *Importer) Import(opts ImportOptions) (*ImportResult, error) {
 		// Write origin sidecar. CredentialRef (if any) is persisted as an
 		// opaque reference string — the raw token is never written to disk.
 		origin := &Origin{
-			Repo:          opts.Repo,
-			Ref:           opts.Ref,
-			Path:          discovered.Path,
-			CommitSHA:     result.CommitSHA,
-			ImportedAt:    time.Now().UTC(),
-			ContentHash:   discovered.ContentHash,
-			InstalledHash: installedHash,
-			Fingerprint:   fp,
-			CredentialRef: opts.Auth.CredentialRef,
+			Repo:                     opts.Repo,
+			Ref:                      opts.Ref,
+			Path:                     discovered.Path,
+			CommitSHA:                result.CommitSHA,
+			ImportedAt:               time.Now().UTC(),
+			ContentHash:              discovered.ContentHash,
+			InstalledHash:            installedHash,
+			Fingerprint:              fp,
+			SupportingFilesInstalled: true,
+			CredentialRef:            opts.Auth.CredentialRef,
 		}
 
 		if err := WriteOrigin(skillDir, origin); err != nil {
@@ -693,6 +694,7 @@ func (imp *Importer) Remove(skillName string) error {
 func (imp *Importer) Update(skillName string, dryRun, force, trust bool) (*ImportResult, error) {
 	skillDir := imp.skillDir(skillName)
 	origin, err := ReadOrigin(skillDir)
+	isSkill := err == nil
 	if err != nil {
 		// The name may be an imported agent: agents share the drift-safe
 		// update flow, and the re-import below refreshes every kind the
@@ -717,21 +719,38 @@ func (imp *Importer) Update(skillName string, dryRun, force, trust bool) (*Impor
 		return nil, fmt.Errorf("checking updates: %w", err)
 	}
 
+	// A legacy skill import with a trustworthy, unchanged snapshot must run once
+	// through the supporting-file installer, even when upstream is unchanged.
+	// Older origins without InstalledHash cannot distinguish local edits, so they
+	// retain the warning rather than risk overwriting the installed document.
+	needsSupportingInstall := false
+	if isSkill && !origin.SupportingFilesInstalled && origin.InstalledHash != "" {
+		currentHash, hashErr := ContentHashFile(filepath.Join(skillDir, "SKILL.md"))
+		needsSupportingInstall = hashErr == nil && currentHash == origin.InstalledHash
+	}
 	// force re-installs from upstream even when the commit is unchanged, so a
 	// caller can discard local edits and restore the tracked version (reset).
-	// Without force, an unchanged commit is a no-op.
-	if !changed && !force {
+	if !changed && !force && !needsSupportingInstall {
 		return &ImportResult{
 			Warnings: []string{fmt.Sprintf("%s is already up to date", skillName)},
 		}, nil
 	}
 
-	imp.logger.Info("update available", "skill", skillName, "current", ShortSHA(origin.CommitSHA), "latest", ShortSHA(newSHA))
-
 	if dryRun {
+		if needsSupportingInstall && !changed {
+			return &ImportResult{
+				Warnings: []string{fmt.Sprintf("%s needs a supporting-file reinstall", skillName)},
+			}, nil
+		}
 		return &ImportResult{
 			Warnings: []string{fmt.Sprintf("%s: update available (%s → %s)", skillName, ShortSHA(origin.CommitSHA), ShortSHA(newSHA))},
 		}, nil
+	}
+
+	if changed {
+		imp.logger.Info("update available", "skill", skillName, "current", ShortSHA(origin.CommitSHA), "latest", ShortSHA(newSHA))
+	} else {
+		imp.logger.Info("reinstalling legacy skill package", "skill", skillName, "commit", ShortSHA(origin.CommitSHA))
 	}
 
 	// Store old fingerprint for comparison
