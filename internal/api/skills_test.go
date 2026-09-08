@@ -17,6 +17,8 @@ import (
 	"github.com/gridctl/gridctl/pkg/mcp"
 	"github.com/gridctl/gridctl/pkg/registry"
 	"github.com/gridctl/gridctl/pkg/skills"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // --- Skills Sources Endpoints ---
@@ -77,6 +79,27 @@ func TestHandleSkills_SourcesList_PopulatesUpdateAvailFromCache(t *testing.T) {
 	if !result[0].UpdateAvail {
 		t.Errorf("expected updateAvailable=true for source with pending skill update")
 	}
+}
+
+func TestHandleSkills_SourcesList_ReportsSupportingFileInstall(t *testing.T) {
+	srv, regServer := setupRegistryTestServer(t)
+	seedSkill(t, regServer, "skill-a", registry.StateActive)
+	seedSkillSource(t, srv, "my-source", "https://github.com/org/repo", "skill-a")
+	skillDir := filepath.Join(regServer.Store().Dir(), "skills", "skill-a")
+	require.NoError(t, skills.WriteOrigin(skillDir, &skills.Origin{
+		Repo:                     "https://github.com/org/repo",
+		SupportingFilesInstalled: true,
+	}))
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, loopbackRequest(http.MethodGet, "/api/skills/sources", nil))
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var result []SkillSourceStatus
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&result))
+	require.Len(t, result, 1)
+	require.Len(t, result[0].Skills, 1)
+	assert.True(t, result[0].Skills[0].SupportingFilesInstalled)
 }
 
 func TestHandleSkills_SourcesList_MissingCacheFailsOpen(t *testing.T) {
