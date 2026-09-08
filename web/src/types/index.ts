@@ -700,6 +700,8 @@ export interface SkillSourceEntry {
   contentHash?: string;
   /** True when the on-disk SKILL.md diverges from the last installed snapshot. */
   hasLocalEdits?: boolean;
+  /** True when import evaluated the complete supporting-file package. */
+  supportingFilesInstalled?: boolean;
 }
 
 export interface SkillSourceStatus {

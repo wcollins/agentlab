@@ -734,6 +734,87 @@ Body.
 	assert.NotEmpty(t, sk.Metadata["openclaw"])
 }
 
+func TestImporter_Import_RecordsSupportingFileInstall(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	store, regDir := setupTestRegistry(t)
+	lockPath := filepath.Join(regDir, "skills.lock.yaml")
+	repoDir := initRepoWithSkillContent(t, map[string]string{
+		"skills/external/SKILL.md": "---\nname: external-assets\ndescription: Uses project assets\n---\n\nRead `assets/config.yml` in the target project.\n",
+	})
+
+	imp := NewImporter(store, regDir, lockPath, slog.Default())
+	result, err := imp.Import(ImportOptions{Repo: repoDir, Path: "skills", Trust: true})
+	require.NoError(t, err)
+	require.Len(t, result.Imported, 1)
+
+	origin, err := ReadOrigin(filepath.Join(regDir, "skills", "external-assets"))
+	require.NoError(t, err)
+	assert.True(t, origin.SupportingFilesInstalled)
+}
+
+func TestImporter_Update_ReinstallsUnchangedLegacySupportingFiles(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	store, regDir := setupTestRegistry(t)
+	lockPath := filepath.Join(regDir, "skills.lock.yaml")
+	repoDir := initRepoWithSkillContent(t, map[string]string{
+		"skills/legacy/SKILL.md":            "---\nname: legacy-skill\ndescription: Legacy package\n---\n\nRead `references/guide.md`.\n",
+		"skills/legacy/references/guide.md": "# Guide\n",
+	})
+
+	imp := NewImporter(store, regDir, lockPath, slog.Default())
+	_, err := imp.Import(ImportOptions{Repo: repoDir, Path: "skills", Trust: true})
+	require.NoError(t, err)
+
+	skillDir := filepath.Join(regDir, "skills", "legacy-skill")
+	origin, err := ReadOrigin(skillDir)
+	require.NoError(t, err)
+	origin.SupportingFilesInstalled = false
+	require.NoError(t, WriteOrigin(skillDir, origin))
+	require.NoError(t, os.RemoveAll(filepath.Join(skillDir, "references")))
+
+	result, err := imp.Update("legacy-skill", false, false, false)
+	require.NoError(t, err)
+	require.Len(t, result.Imported, 1)
+	assert.FileExists(t, filepath.Join(skillDir, "references", "guide.md"))
+
+	origin, err = ReadOrigin(skillDir)
+	require.NoError(t, err)
+	assert.True(t, origin.SupportingFilesInstalled)
+}
+
+func TestImporter_Update_DoesNotOverwriteUnsnapshottedLegacySkill(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	store, regDir := setupTestRegistry(t)
+	lockPath := filepath.Join(regDir, "skills.lock.yaml")
+	repoDir := initRepoWithSkillContent(t, map[string]string{
+		"skills/legacy/SKILL.md": "---\nname: legacy-skill\ndescription: Upstream\n---\n\nUpstream body.\n",
+	})
+
+	imp := NewImporter(store, regDir, lockPath, slog.Default())
+	_, err := imp.Import(ImportOptions{Repo: repoDir, Path: "skills", Trust: true})
+	require.NoError(t, err)
+
+	skillDir := filepath.Join(regDir, "skills", "legacy-skill")
+	skillFile := filepath.Join(skillDir, "SKILL.md")
+	origin, err := ReadOrigin(skillDir)
+	require.NoError(t, err)
+	origin.SupportingFilesInstalled = false
+	origin.InstalledHash = ""
+	require.NoError(t, WriteOrigin(skillDir, origin))
+	locallyEdited := []byte("---\nname: legacy-skill\ndescription: Local edit\nstate: active\n---\n\nKeep this body.\n")
+	require.NoError(t, os.WriteFile(skillFile, locallyEdited, 0o644))
+
+	result, err := imp.Update("legacy-skill", false, false, false)
+	require.NoError(t, err)
+	assert.Empty(t, result.Imported)
+	installed, err := os.ReadFile(skillFile)
+	require.NoError(t, err)
+	assert.Equal(t, locallyEdited, installed)
+}
+
 // TestImporter_Import_UnknownFrontmatterPreserved is the end-to-end
 // regression test for import stripping unmodeled frontmatter keys: the raw
 // bytes written to the registry must still carry the key.

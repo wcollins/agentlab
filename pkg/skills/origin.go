@@ -25,6 +25,10 @@ type Origin struct {
 	// normalization and state injection).
 	InstalledHash string       `json:"installedHash,omitempty"`
 	Fingerprint   *Fingerprint `json:"fingerprint,omitempty"`
+	// SupportingFilesInstalled records that the importer evaluated and
+	// installed the complete allowlisted package tree, even when it was empty.
+	// Its absence identifies imports created before supporting-file installs.
+	SupportingFilesInstalled bool `json:"supportingFilesInstalled,omitempty"`
 	// CredentialRef is an opaque reference like "${vault:GIT_TOKEN}" used to
 	// re-resolve credentials on skill update. Raw token values are never
 	// persisted — only the reference string.

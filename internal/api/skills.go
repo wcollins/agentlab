@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"sync"
 
@@ -72,6 +73,9 @@ type SkillSourceEntry struct {
 	// HasLocalEdits is true when the on-disk SKILL.md diverges from the hash
 	// snapshotted at the last import/sync (i.e. the user edited it locally).
 	HasLocalEdits bool `json:"hasLocalEdits"`
+	// SupportingFilesInstalled distinguishes a complete package that ships no
+	// managed files from a legacy import that may have omitted them.
+	SupportingFilesInstalled bool `json:"supportingFilesInstalled"`
 }
 
 // SkillPreview represents a previewed skill from a repo (not yet imported).
@@ -348,6 +352,10 @@ func (s *Server) handleSkillSourcesList(w http.ResponseWriter, r *http.Request) 
 			if sk, err := store.GetSkill(skillName); err == nil {
 				entry.Description = sk.Description
 				entry.State = string(sk.State)
+				skillDir := filepath.Join(store.Dir(), "skills", sk.Dir)
+				if origin, originErr := skills.ReadOrigin(skillDir); originErr == nil {
+					entry.SupportingFilesInstalled = origin.SupportingFilesInstalled
+				}
 			}
 			if driftedSet[skillName] {
 				entry.HasLocalEdits = true
