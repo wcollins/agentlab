@@ -14,12 +14,13 @@ func TestOriginReadWrite(t *testing.T) {
 	dir := t.TempDir()
 
 	origin := &Origin{
-		Repo:        "https://github.com/org/repo",
-		Ref:         "main",
-		Path:        "skills/deploy",
-		CommitSHA:   "abc123def456",
-		ImportedAt:  time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC),
-		ContentHash: "deadbeef",
+		Repo:                     "https://github.com/org/repo",
+		Ref:                      "main",
+		Path:                     "skills/deploy",
+		CommitSHA:                "abc123def456",
+		ImportedAt:               time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC),
+		ContentHash:              "deadbeef",
+		SupportingFilesInstalled: true,
 	}
 
 	// Write
@@ -36,6 +37,7 @@ func TestOriginReadWrite(t *testing.T) {
 	assert.Equal(t, origin.Path, got.Path)
 	assert.Equal(t, origin.CommitSHA, got.CommitSHA)
 	assert.Equal(t, origin.ContentHash, got.ContentHash)
+	assert.True(t, got.SupportingFilesInstalled)
 }
 
 func TestHasOrigin(t *testing.T) {
