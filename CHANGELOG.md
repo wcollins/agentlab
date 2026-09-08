@@ -18,6 +18,7 @@ All notable changes to gridctl will be documented in this file.
 
 ### Bug Fixes
 
+- The Stack spec view preserves the export API's value-free field path and corrective action on failure instead of showing only a generic HTTP status. Failed exports still produce no download (#1222).
 - The Library no longer claims that intentionally external `scripts/`, `references/`, or `assets/` paths are missing from a complete imported skill package. New imports record that all managed supporting-file trees were evaluated, while legacy and local skills retain the missing-file warning.
 - Container stdio MCP servers no longer report a phantom allocated host port during apply, reload, or autoscaling. Stdio workloads publish no ports, while HTTP/SSE workloads continue to receive sequential published ports among themselves.
 - Documentation now covers scoped variable delivery across the README, architecture map, REST wire shapes, stack schema inventory, and variable examples. The remote-gateway example no longer instructs users to store a reserved `GRIDCTL_*` control-plane key.
