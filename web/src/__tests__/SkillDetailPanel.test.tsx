@@ -190,6 +190,21 @@ describe('SkillDetailPanel', () => {
       await waitFor(() => expect(updateSkillSource).toHaveBeenCalledWith('acme-skills'));
     });
 
+    it('stays silent when a remote import intentionally ships no matching files', () => {
+      const completeSource: SkillSourceStatus = {
+        ...SOURCE,
+        skills: [{
+          name: needsScripts.name,
+          description: needsScripts.description,
+          state: needsScripts.state,
+          isRemote: true,
+          supportingFilesInstalled: true,
+        }],
+      };
+      renderPanel({ skill: needsScripts, source: completeSource });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
     it('offers no action for a local skill, only the explanation', async () => {
       renderPanel({ skill: needsScripts });
       expect(await screen.findByRole('status')).toHaveTextContent(/local skill/i);
